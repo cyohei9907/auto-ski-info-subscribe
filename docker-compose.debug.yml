@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  backend:
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "mkdir -p /app/data &&
+       rm -f /app/db.sqlite3 &&
+       python manage.py migrate &&
+       python manage.py collectstatic --noinput &&
+       python manage.py shell -c \"from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(email='admin@example.com').exists() or User.objects.create_superuser(username='admin', email='admin@example.com', password='admin@123') and print('Development superuser created: admin@example.com / admin@123')\" &&
+       python -Xfrozen_modules=off -m debugpy --listen 0.0.0.0:5678 manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "5678:5678"
+    environment:
+      - DEBUG=True
+      - PYDEVD_DISABLE_FILE_VALIDATION=1
