@@ -187,6 +187,118 @@ class GeminiService:
             }
 
 
+class AIService:
+    """AI服务统一接口"""
+    
+    def __init__(self):
+        self.gemini_service = GeminiService()
+    
+    def analyze_tweet_relevance(self, tweet_content: str, user_prompt: str = None) -> Dict:
+        """
+        分析推文是否与用户需求相关
+        
+        Args:
+            tweet_content: 推文内容
+            user_prompt: 用户自定义的判断标准（可选）
+        
+        Returns:
+            {
+                'is_relevant': bool,  # 是否相关
+                'score': float,  # 相关度评分 0-1
+                'reason': str,  # AI推荐理由
+                'summary': str  # 推文摘要
+            }
+        """
+        try:
+            # 默认提示词：关注滑雪场信息
+            default_prompt = """
+            你是一个专业的滑雪信息分析助手。请判断以下推文是否包含有价值的滑雪相关信息。
+            
+            重点关注：
+            - 滑雪场营业信息（开放时间、关闭通知）
+            - 雪况报告（积雪深度、雪质）
+            - 天气预报（降雪、气温）
+            - 活动公告（比赛、特别活动）
+            - 设施更新（缆车、餐厅）
+            - 折扣优惠信息
+            
+            请不要推荐：
+            - 纯粹的社交闲聊
+            - 无关的广告
+            - 低质量内容
+            """
+            
+            prompt = user_prompt or default_prompt
+            
+            analysis_prompt = f"""
+            {prompt}
+            
+            推文内容：
+            {tweet_content}
+            
+            请以JSON格式返回分析结果：
+            {{
+                "is_relevant": true/false,
+                "score": 0.0-1.0,
+                "reason": "推荐理由（如果相关）或不推荐原因",
+                "summary": "推文的简短摘要（20字以内）"
+            }}
+            """
+            
+            response = self.gemini_service.model.generate_content(analysis_prompt)
+            result_text = response.text.strip()
+            
+            # 尝试解析JSON
+            try:
+                # 提取JSON部分（可能包含在```json```代码块中）
+                if '```json' in result_text:
+                    json_start = result_text.find('```json') + 7
+                    json_end = result_text.find('```', json_start)
+                    result_text = result_text[json_start:json_end].strip()
+                elif '```' in result_text:
+                    json_start = result_text.find('```') + 3
+                    json_end = result_text.find('```', json_start)
+                    result_text = result_text[json_start:json_end].strip()
+                
+                result = json.loads(result_text)
+                
+                return {
+                    'is_relevant': result.get('is_relevant', False),
+                    'score': float(result.get('score', 0.0)),
+                    'reason': result.get('reason', ''),
+                    'summary': result.get('summary', tweet_content[:50])
+                }
+                
+            except json.JSONDecodeError:
+                # 如果JSON解析失败，使用启发式方法
+                logger.warning(f"Failed to parse AI response as JSON: {result_text}")
+                return self._heuristic_relevance_check(tweet_content)
+                
+        except Exception as e:
+            logger.error(f"Error in AI relevance analysis: {e}")
+            return self._heuristic_relevance_check(tweet_content)
+    
+    def _heuristic_relevance_check(self, tweet_content: str) -> Dict:
+        """启发式相关性检查（当AI调用失败时使用）"""
+        ski_keywords = [
+            'スキー', 'スキー場', 'ゲレンデ', 'スノボ', 'スノーボード',
+            '雪', '積雪', 'パウダー', 'リフト', '営業', 'オープン',
+            'ski', 'snow', 'resort', 'slope', 'powder'
+        ]
+        
+        keyword_count = sum(1 for keyword in ski_keywords if keyword in tweet_content.lower())
+        
+        is_relevant = keyword_count >= 2
+        score = min(1.0, keyword_count * 0.2)
+        
+        return {
+            'is_relevant': is_relevant,
+            'score': score,
+            'reason': f'包含{keyword_count}个滑雪相关关键词' if is_relevant else '未包含足够的滑雪相关信息',
+            'summary': tweet_content[:50] + ('...' if len(tweet_content) > 50 else '')
+        }
+
+
 def analyze_tweet_with_ai(tweet_id: int) -> Optional[AIAnalysis]:
     """ツイートをAIで分析してAIAnalysisオブジェクトを作成"""
     try:

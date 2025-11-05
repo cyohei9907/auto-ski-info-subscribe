@@ -12,6 +12,9 @@ class XAccount(models.Model):
     x_user_id = models.CharField(max_length=255, blank=True, help_text="X user ID")
     avatar_url = models.URLField(blank=True)
     is_active = models.BooleanField(default=True)
+    ai_filter_enabled = models.BooleanField(default=False, help_text="智能推荐开关")
+    fetch_from_date = models.DateField(blank=True, null=True, help_text="开始拉取推文的日期")
+    fetch_to_date = models.DateField(blank=True, null=True, help_text="结束拉取推文的日期")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_checked = models.DateTimeField(blank=True, null=True)
@@ -36,6 +39,9 @@ class Tweet(models.Model):
     reply_count = models.IntegerField(default=0)
     is_retweet = models.BooleanField(default=False)
     original_tweet_id = models.CharField(max_length=255, blank=True, null=True)
+    ai_analyzed = models.BooleanField(default=False, help_text="是否已进行AI分析")
+    ai_relevant = models.BooleanField(default=False, help_text="AI判断是否相关")
+    ai_summary = models.TextField(blank=True, help_text="AI生成的摘要")
     posted_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -55,7 +61,7 @@ class MonitoringLog(models.Model):
     ]
     
     x_account = models.ForeignKey(XAccount, on_delete=models.CASCADE, related_name='logs')
-    result = models.CharField(max_length=20, choices=RESULT_CHOICES)
+    result = models.CharField(max_length=20, choices=RESULT_CHOICES, default='success')
     tweets_found = models.IntegerField(default=0)
     error_message = models.TextField(blank=True)
     execution_time = models.FloatField(help_text="Execution time in seconds")
@@ -79,6 +85,23 @@ class AIAnalysis(models.Model):
     
     def __str__(self):
         return f"AI Analysis for Tweet {self.tweet.tweet_id}"
+
+
+class RecommendedTweet(models.Model):
+    """AI推荐的推文"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recommended_tweets')
+    tweet = models.ForeignKey(Tweet, on_delete=models.CASCADE, related_name='recommendations')
+    ai_reason = models.TextField(help_text="AI推荐理由")
+    relevance_score = models.FloatField(default=0.0, help_text="相关度评分 0-1")
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ['user', 'tweet']
+        
+    def __str__(self):
+        return f"Recommended Tweet {self.tweet.tweet_id} for {self.user.email}"
 
 
 class UserNotification(models.Model):

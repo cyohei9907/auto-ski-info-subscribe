@@ -1,47 +1,79 @@
-# VS Code Dockerデバッグガイド
+# VS Code デバッグガイド
 
-このガイドでは、VS CodeからDjango BackendをDockerコンテナ内でデバッグする方法を説明します。
+## 開発環境の起動
 
-## 前提条件
+### Docker 環境（推奨）
 
-- Docker Desktop がインストールされ、起動していること
-- VS Code に Python 拡張機能がインストールされていること
-- 環境変数が設定されていること(LOCAL_SETUP.md参照)
+1. **サービスの起動**
 
-## デバッグの開始方法
+   ```bash
+   docker-compose up -d
+   ```
 
-### 1. Dockerコンテナを起動する
+   または VS Code から：
 
-デバッグモードでコンテナを起動します:
+   - `F1` → `Tasks: Run Task` → `Docker: Start Dev Services`
 
-```bash
-docker-compose -f docker-compose.yml -f docker-compose.debug.yml up -d
-```
+2. **アプリケーションへのアクセス**
 
-または、VS Codeのタスクから実行:
-- `Ctrl+Shift+P` → `Tasks: Run Task` → `docker-compose-debug-up` を選択
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:8000
+   - Admin: http://localhost:8000/admin
 
-### 2. デバッガーをアタッチする
+3. **サービスの停止**
+   ```bash
+   docker-compose down
+   ```
 
-VS Codeのデバッグビューから:
-1. サイドバーの「実行とデバッグ」アイコンをクリック(Ctrl+Shift+D)
-2. ドロップダウンから `Docker: Django Backend` を選択
-3. 緑色の再生ボタンをクリックするか、`F5` キーを押す
+### ローカル環境
+
+1. **Redis を起動**
+
+   ```bash
+   docker run -d --name auto-ski-redis -p 6379:6379 redis:7-alpine
+   ```
+
+2. **Django Backend を起動**
+
+   - VS Code のデバッグビューから `Django: Backend` を選択して F5
+
+3. **Celery Worker を起動**（オプション）
+
+   - VS Code のデバッグビューから `Django: Celery Worker` を選択して実行
+
+4. **複数サービスを同時起動**
+   - デバッグビューから `All Local Services` を選択
+
+## 注意事項
+
+### ブラウザデバッグについて
+
+- Chrome/Edge のデバッグ設定は **attach** モードに変更されています
+- **新しいウィンドウは開きません**
+- 既に開いているブラウザタブで開発してください
+- ブレークポイントは VS Code の JavaScript ファイルに設定できます
+
+### Docker デバッグポートについて
+
+- Docker コンテナへのリモートデバッグは現在無効化されています
+- コンテナ内でのデバッグが必要な場合は、docker-compose.debug.yml を使用してください
 
 ### 3. ブレークポイントを設定する
 
-デバッグしたいPythonファイル(.py)を開き、行番号の左側をクリックしてブレークポイントを設定します。
+デバッグしたい Python ファイル(.py)を開き、行番号の左側をクリックしてブレークポイントを設定します。
 
 例:
+
 - `backend/x_monitor/views.py` の `list` メソッド
 - `backend/ai_service/services.py` の `analyze_tweet_comprehensive` メソッド
 
-### 4. APIをテストする
+### 4. API をテストする
 
-ブレークポイントを設定したら、以下の方法でAPIをトリガーします:
+ブレークポイントを設定したら、以下の方法で API をトリガーします:
+
 - ブラウザで http://localhost:3000 からフロントエンドを操作
-- Swagger UI (http://localhost:8000/swagger/) からAPIを直接呼び出す
-- curlやPostmanなどのツールを使用
+- Swagger UI (http://localhost:8000/swagger/) から API を直接呼び出す
+- curl や Postman などのツールを使用
 
 実行がブレークポイントで停止し、変数の検査やステップ実行が可能になります。
 
@@ -50,22 +82,26 @@ VS Codeのデバッグビューから:
 ### 利用可能なデバッグ設定
 
 #### 1. Docker: Django Backend
-Django バックエンドをDockerコンテナ内でデバッグします。
+
+Django バックエンドを Docker コンテナ内でデバッグします。
 
 **使用するポート**: 5678 (debugpy)
 
 **パスマッピング**:
+
 - ローカル: `${workspaceFolder}/backend`
 - コンテナ: `/app`
 
 #### 2. Chrome: React Frontend
-React フロントエンドをChromeでデバッグします。
+
+React フロントエンドを Chrome でデバッグします。
 
 **使用するポート**: 3000 (React dev server)
 
-**ブレークポイント**: JSX/TSXファイル内のJavaScript/TypeScriptコード
+**ブレークポイント**: JSX/TSX ファイル内の JavaScript/TypeScript コード
 
 #### 3. Full Stack
+
 バックエンドとフロントエンドを同時にデバッグします。
 
 ## トラブルシューティング
@@ -75,18 +111,23 @@ React フロントエンドをChromeでデバッグします。
 **症状**: "Cannot connect to runtime process" エラー
 
 **解決方法**:
+
 1. バックエンドコンテナが起動しているか確認:
+
    ```bash
    docker-compose ps
    ```
 
-2. debugpyがリッスンしているか確認:
+2. debugpy がリッスンしているか確認:
+
    ```bash
    docker-compose logs backend
    ```
+
    "Debugger is active" というメッセージが表示されるはずです。
 
-3. ポート5678が他のプロセスで使用されていないか確認:
+3. ポート 5678 が他のプロセスで使用されていないか確認:
+
    ```bash
    netstat -ano | findstr :5678
    ```
@@ -101,6 +142,7 @@ React フロントエンドをChromeでデバッグします。
 **症状**: ブレークポイントを設定しても実行が停止しない
 
 **解決方法**:
+
 1. ブレークポイントが実行されるコードパスにあるか確認
 2. デバッガーが正常にアタッチされているか確認(デバッグコンソールにメッセージが表示される)
 3. パスマッピングが正しいか確認:
@@ -112,14 +154,15 @@ React フロントエンドをChromeでデバッグします。
 **症状**: コードを変更してもデバッガーが古いコードを実行する
 
 **解決方法**:
-1. Djangoの自動リロードを待つ(数秒)
+
+1. Django の自動リロードを待つ(数秒)
 2. バックエンドコンテナを再起動:
    ```bash
    docker-compose restart backend
    ```
 3. デバッガーを再アタッチ(F5)
 
-## 便利なVS Codeタスク
+## 便利な VS Code タスク
 
 以下のタスクは `Ctrl+Shift+P` → `Tasks: Run Task` から実行できます:
 
@@ -129,7 +172,7 @@ React フロントエンドをChromeでデバッグします。
 - **docker-compose-restart-backend**: バックエンドコンテナを再起動
 - **docker-exec-migrate**: データベースマイグレーションを実行
 - **docker-exec-makemigrations**: マイグレーションファイルを生成
-- **docker-exec-shell**: Django shellを起動
+- **docker-exec-shell**: Django shell を起動
 
 ## デバッグのベストプラクティス
 
@@ -147,6 +190,7 @@ def my_view(request):
 ```
 
 ログを確認:
+
 ```bash
 docker-compose logs -f backend
 ```
@@ -154,6 +198,7 @@ docker-compose logs -f backend
 ### 2. 条件付きブレークポイント
 
 特定の条件でのみ停止するブレークポイントを設定できます:
+
 1. ブレークポイントを右クリック
 2. "ブレークポイントの編集"を選択
 3. 条件式を入力(例: `user.id == 123`)
@@ -161,6 +206,7 @@ docker-compose logs -f backend
 ### 3. ウォッチ式
 
 変数の値を追跡するには:
+
 1. デバッグビューの「ウォッチ」セクション
 2. 「+」ボタンをクリック
 3. 変数名や式を入力(例: `len(tweets)`, `user.is_active`)
@@ -168,8 +214,9 @@ docker-compose logs -f backend
 ### 4. デバッグコンソール
 
 デバッグ中に式を評価するには:
+
 1. デバッグコンソールタブを開く
-2. Python式を入力して実行
+2. Python 式を入力して実行
 3. 変数の値を確認したり、関数を呼び出したりできます
 
 ## 参考リンク

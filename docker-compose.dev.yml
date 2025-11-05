@@ -1,49 +1,52 @@
 version: '3.8'
 
 services:
-  # Redis for Celery (ローカル開発用)
+  # Redis for Celery
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - auto-ski-network
 
-  # Django Backend (SQLite使用)
+  # Django Backend with Debug Support
   backend:
     build:
       context: ./backend
+      dockerfile: Dockerfile.dev
     ports:
       - "8000:8000"
+      - "5678:5678"  # debugpy port
     depends_on:
       - redis
-    # Override the image ENTRYPOINT to avoid missing /entrypoint.sh
-    command: >
-      sh -c "mkdir -p /app/data &&
-             python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
-             gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 300 auto_ski_info.wsgi:application"
     environment:
-      # ローカル開発設定
       USE_CLOUD_SQL: "False"
       DEBUG: "True"
+      DEBUG_MODE: "True"  # Enable debugpy
       SECRET_KEY: "django-insecure-local-dev-key"
       ALLOWED_HOSTS: "localhost,127.0.0.1,backend"
       REDIS_URL: "redis://redis:6379/0"
-      # API Keys - システム環境変数から取得
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      PYTHONUNBUFFERED: "1"
     volumes:
       - ./backend:/app
-      - sqlite_data:/app/data  # SQLite データベース用
+      - sqlite_data:/app/data
+    networks:
+      - auto-ski-network
+    stdin_open: true
+    tty: true
 
-  # Celery Worker (バックグラウンドタスク処理)
+  # Celery Worker with Debug Support
   celery:
     build:
       context: ./backend
-    # Override the image ENTRYPOINT to ensure migrations run and avoid missing /entrypoint.sh
-    command: >
-      sh -c "python manage.py migrate &&
-             celery -A auto_ski_info worker -l info"
+      dockerfile: Dockerfile.dev
+    entrypoint: []
+    command: python -m debugpy --listen 0.0.0.0:5679 -m celery -A auto_ski_info worker -l info --pool=solo
+    ports:
+      - "5679:5679"  # debugpy port for celery
     depends_on:
       - redis
       - backend
@@ -52,18 +55,22 @@ services:
       DEBUG: "True"
       REDIS_URL: "redis://redis:6379/0"
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      PYTHONUNBUFFERED: "1"
     volumes:
       - ./backend:/app
       - sqlite_data:/app/data
+    networks:
+      - auto-ski-network
 
-  # Celery Beat (定期タスクスケジューラー)
+  # Celery Beat with Debug Support
   celery-beat:
     build:
       context: ./backend
-    # Override the image ENTRYPOINT to ensure migrations run and avoid missing /entrypoint.sh
-    command: >
-      sh -c "python manage.py migrate &&
-             celery -A auto_ski_info beat -l info"
+      dockerfile: Dockerfile.dev
+    entrypoint: []
+    command: python -m debugpy --listen 0.0.0.0:5680 -m celery -A auto_ski_info beat -l info
+    ports:
+      - "5680:5680"  # debugpy port for celery-beat
     depends_on:
       - redis
       - backend
@@ -72,23 +79,36 @@ services:
       DEBUG: "True"
       REDIS_URL: "redis://redis:6379/0"
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      PYTHONUNBUFFERED: "1"
     volumes:
       - ./backend:/app
       - sqlite_data:/app/data
+    networks:
+      - auto-ski-network
 
-  # React Frontend
+  # React Frontend (Development)
   frontend:
     build:
       context: ./frontend
+      dockerfile: Dockerfile.dev
     ports:
-      - "3000:80"
+      - "3000:3000"
     depends_on:
       - backend
     environment:
       REACT_APP_API_URL: "http://localhost:8000/api"
+      CHOKIDAR_USEPOLLING: "true"  # Enable hot reload in Docker
     volumes:
-      - ./frontend:/app
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
       - /app/node_modules
+    networks:
+      - auto-ski-network
+    stdin_open: true
+
+networks:
+  auto-ski-network:
+    driver: bridge
 
 volumes:
   redis_data:

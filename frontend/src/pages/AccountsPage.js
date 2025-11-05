@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Card,
   Button,
@@ -12,16 +12,16 @@ import {
   Tag,
   Avatar,
   Typography,
-} from 'antd';
+} from "antd";
 import {
   PlusOutlined,
   TwitterOutlined,
   EyeOutlined,
   DeleteOutlined,
   ReloadOutlined,
-} from '@ant-design/icons';
-import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { monitorAPI } from '../services/api';
+} from "@ant-design/icons";
+import { useQuery, useMutation, useQueryClient } from "react-query";
+import { monitorAPI } from "../services/api";
 
 const { Title } = Typography;
 
@@ -30,27 +30,32 @@ const AccountsPage = () => {
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
 
-  const { data: accounts, isLoading } = useQuery('accounts', monitorAPI.getAccounts);
+  const { data: accounts, isLoading } = useQuery(
+    "accounts",
+    monitorAPI.getAccounts
+  );
 
   const addAccountMutation = useMutation(monitorAPI.addAccount, {
     onSuccess: () => {
-      message.success('アカウントを追加しました');
+      message.success("アカウントを追加しました");
       setIsModalVisible(false);
       form.resetFields();
-      queryClient.invalidateQueries('accounts');
+      queryClient.invalidateQueries("accounts");
     },
     onError: (error) => {
-      message.error(error.response?.data?.error || 'アカウントの追加に失敗しました');
+      message.error(
+        error.response?.data?.error || "アカウントの追加に失敗しました"
+      );
     },
   });
 
   const deleteAccountMutation = useMutation(monitorAPI.deleteAccount, {
     onSuccess: () => {
-      message.success('アカウントを削除しました');
-      queryClient.invalidateQueries('accounts');
+      message.success("アカウントを削除しました");
+      queryClient.invalidateQueries("accounts");
     },
     onError: () => {
-      message.error('アカウントの削除に失敗しました');
+      message.error("アカウントの削除に失敗しました");
     },
   });
 
@@ -58,21 +63,21 @@ const AccountsPage = () => {
     ({ id, data }) => monitorAPI.updateAccount(id, data),
     {
       onSuccess: () => {
-        message.success('アカウントを更新しました');
-        queryClient.invalidateQueries('accounts');
+        message.success("アカウントを更新しました");
+        queryClient.invalidateQueries("accounts");
       },
       onError: () => {
-        message.error('アカウントの更新に失敗しました');
+        message.error("アカウントの更新に失敗しました");
       },
     }
   );
 
   const monitorNowMutation = useMutation(monitorAPI.monitorNow, {
     onSuccess: () => {
-      message.success('監視タスクを開始しました');
+      message.success("監視タスクを開始しました");
     },
     onError: () => {
-      message.error('監視の開始に失敗しました');
+      message.error("監視の開始に失敗しました");
     },
   });
 
@@ -97,10 +102,10 @@ const AccountsPage = () => {
 
   const columns = [
     {
-      title: 'アバター',
-      dataIndex: 'avatar_url',
+      title: "アバター",
+      dataIndex: "avatar_url",
       width: 60,
-      fixed: 'left',
+      fixed: "left",
       render: (avatar_url, record) =>
         avatar_url ? (
           <Avatar src={avatar_url} size={32} />
@@ -109,60 +114,60 @@ const AccountsPage = () => {
         ),
     },
     {
-      title: 'ユーザー名',
-      dataIndex: 'username',
+      title: "ユーザー名",
+      dataIndex: "username",
       width: 150,
       render: (username) => `@${username}`,
     },
     {
-      title: '表示名',
-      dataIndex: 'display_name',
+      title: "表示名",
+      dataIndex: "display_name",
       width: 150,
     },
     {
-      title: 'ツイート数',
-      dataIndex: 'tweets_count',
+      title: "ツイート数",
+      dataIndex: "tweets_count",
       width: 100,
       render: (count) => count || 0,
     },
     {
-      title: 'ステータス',
-      dataIndex: 'is_active',
+      title: "ステータス",
+      dataIndex: "is_active",
       width: 100,
       render: (is_active) => (
-        <Tag color={is_active ? 'green' : 'red'}>
-          {is_active ? '監視中' : '停止中'}
+        <Tag color={is_active ? "green" : "red"}>
+          {is_active ? "監視中" : "停止中"}
         </Tag>
       ),
     },
     {
-      title: '最終チェック',
-      dataIndex: 'last_checked',
+      title: "最終チェック",
+      dataIndex: "last_checked",
       width: 150,
       render: (last_checked) =>
         last_checked
-          ? new Date(last_checked).toLocaleString('ja-JP', {
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit'
+          ? new Date(last_checked).toLocaleString("ja-JP", {
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
             })
-          : '未実行',
+          : "未実行",
     },
     {
-      title: '操作',
-      key: 'actions',
+      title: "操作",
+      key: "actions",
       width: 200,
-      fixed: 'right',
+      fixed: "right",
       render: (_, record) => (
         <Space size="small">
           <Button
             size="small"
-            type={record.is_active ? 'default' : 'primary'}
+            type={record.is_active ? "default" : "primary"}
             onClick={() => handleToggleActive(record)}
             loading={updateAccountMutation.isLoading}
           >
-            {record.is_active ? '停止' : '開始'}
+            {record.is_active ? "停止" : "開始"}
           </Button>
           <Button
             size="small"
@@ -194,19 +199,25 @@ const AccountsPage = () => {
   return (
     <div>
       <div className="page-header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
           <div>
             <Title level={2} style={{ margin: 0 }}>
               アカウント管理
             </Title>
-            <p style={{ margin: '8px 0 0 0', color: '#666' }}>
+            <p style={{ margin: "8px 0 0 0", color: "#666" }}>
               監視するX (Twitter) アカウントを管理します
             </p>
           </div>
           <Space>
             <Button
               icon={<ReloadOutlined />}
-              onClick={() => queryClient.invalidateQueries('accounts')}
+              onClick={() => queryClient.invalidateQueries("accounts")}
               loading={isLoading}
             >
               更新
@@ -225,7 +236,7 @@ const AccountsPage = () => {
       <Card>
         <Table
           columns={columns}
-          dataSource={Array.isArray(accounts?.data) ? accounts.data : []}
+          dataSource={accounts?.data?.results || []}
           loading={isLoading}
           rowKey="id"
           scroll={{ x: 800 }}
@@ -248,27 +259,22 @@ const AccountsPage = () => {
         }}
         footer={null}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleAddAccount}
-        >
+        <Form form={form} layout="vertical" onFinish={handleAddAccount}>
           <Form.Item
             name="username"
             label="X (Twitter) ユーザー名"
             rules={[
-              { required: true, message: 'ユーザー名を入力してください' },
-              { pattern: /^[a-zA-Z0-9_]+$/, message: '有効なユーザー名を入力してください' },
+              { required: true, message: "ユーザー名を入力してください" },
+              {
+                pattern: /^[a-zA-Z0-9_]+$/,
+                message: "有効なユーザー名を入力してください",
+              },
             ]}
           >
-            <Input
-              prefix="@"
-              placeholder="username"
-              maxLength={15}
-            />
+            <Input prefix="@" placeholder="username" maxLength={15} />
           </Form.Item>
           <Form.Item>
-            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Space style={{ width: "100%", justifyContent: "flex-end" }}>
               <Button onClick={() => setIsModalVisible(false)}>
                 キャンセル
               </Button>

@@ -5,6 +5,7 @@ Django settings for auto_ski_info project.
 import os
 from pathlib import Path
 from decouple import config
+from celery.schedules import crontab
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -183,6 +184,26 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+
+# Celery Beat スケジュール設定
+CELERY_BEAT_SCHEDULE = {
+    'monitor-all-accounts-hourly': {
+        'task': 'x_monitor.tasks.monitor_all_active_accounts',
+        'schedule': 3600.0,  # 1時間ごと
+    },
+    'monitor-today-tweets-morning': {
+        'task': 'x_monitor.tasks.monitor_today_tweets',
+        'schedule': crontab(hour=9, minute=0),  # 毎日9:00
+    },
+    'monitor-today-tweets-noon': {
+        'task': 'x_monitor.tasks.monitor_today_tweets',
+        'schedule': crontab(hour=12, minute=0),  # 毎日12:00
+    },
+    'monitor-today-tweets-evening': {
+        'task': 'x_monitor.tasks.monitor_today_tweets',
+        'schedule': crontab(hour=18, minute=0),  # 毎日18:00
+    },
+}
 
 # Gemini AI settings
 # ローカルでは環境変数、Cloud Run では Secret Manager から取得

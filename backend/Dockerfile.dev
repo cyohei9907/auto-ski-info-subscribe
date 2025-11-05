@@ -34,6 +34,9 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install debugpy for remote debugging
+RUN pip install --no-cache-dir debugpy
+
 # Install Playwright browsers
 RUN playwright install chromium
 RUN playwright install-deps chromium
@@ -41,7 +44,12 @@ RUN playwright install-deps chromium
 # Copy project
 COPY . .
 
-EXPOSE 8000
+# Collect static files and run migrations in entrypoint
+COPY entrypoint.dev.sh /entrypoint.dev.sh
+RUN chmod +x /entrypoint.dev.sh
 
-# Default command (can be overridden in docker-compose.yml)
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "300", "auto_ski_info.wsgi:application"]
+EXPOSE 8000
+# Expose debugpy port
+EXPOSE 5678
+
+ENTRYPOINT ["/entrypoint.dev.sh"]

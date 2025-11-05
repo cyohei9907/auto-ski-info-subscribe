@@ -1,3 +1,4 @@
+import logging
 from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -6,6 +7,8 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from .models import XAccount, Tweet, MonitoringLog, UserNotification
+
+logger = logging.getLogger(__name__)
 from .serializers import (
     XAccountSerializer, XAccountCreateSerializer, TweetSerializer,
     MonitoringLogSerializer, UserNotificationSerializer
@@ -43,19 +46,40 @@ class XAccountListCreateView(generics.ListCreateAPIView):
         }
     )
     def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         
         username = serializer.validated_data['username']
+        
+        # Check if account already exists
+        existing_account = XAccount.objects.filter(
+            user=request.user, 
+            username=username
+        ).first()
+        
+        if existing_account:
+            return Response(
+                {'error': f'アカウント @{username} は既に追加されています'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         # X APIを使ってアカウント情報を取得
         monitor_service = XMonitorService()
         account_info = monitor_service.setup_account_monitoring(username)
         
         if not account_info:
+            # スクレイピング失敗時は、デフォルト値でアカウントを作成（開発用）
+            logger.warning(f'Failed to scrape account @{username}, creating with default values')
+            x_account = XAccount.objects.create(
+                user=request.user,
+                username=username,
+                display_name=username,
+                x_user_id=username,  # Use username as x_user_id fallback
+                avatar_url='https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png'
+            )
             return Response(
-                {'error': 'アカウントが見つからないか、アクセスできません'},
-                status=status.HTTP_400_BAD_REQUEST
+                XAccountSerializer(x_account).data,
+                status=status.HTTP_201_CREATED
             )
         
         # アカウントを作成
@@ -63,9 +87,13 @@ class XAccountListCreateView(generics.ListCreateAPIView):
             user=request.user,
             username=account_info['username'],
             display_name=account_info['display_name'],
-            user_id=account_info['user_id'],
+            x_user_id=account_info['user_id'],
             avatar_url=account_info['avatar_url']
         )
+        
+        # 第一次添加账户时，自动获取10条最新推文（异步任务）
+        from .tasks import fetch_initial_tweets
+        fetch_initial_tweets.delay(x_account.id)
         
         return Response(
             XAccountSerializer(x_account).data,

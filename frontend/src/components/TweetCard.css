@@ -1,0 +1,128 @@
+.tweet-card {
+  transition: all 0.3s ease;
+}
+
+.tweet-card:hover {
+  background-color: #f7f9fa;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+}
+
+.tweet-card .ant-card-body {
+  padding: 16px;
+}
+
+.tweet-card-actions {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid #e1e8ed;
+}
+
+.tweet-card-action-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tweet-card-action-button:hover {
+  background-color: rgba(29, 155, 240, 0.1);
+}
+
+.tweet-card-action-button:hover .anticon {
+  color: #1890ff !important;
+}
+
+.tweet-card-action-button:hover .ant-typography {
+  color: #1890ff !important;
+}
+
+.tweet-media-grid {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.tweet-media-grid-1 {
+  grid-template-columns: 1fr;
+}
+
+.tweet-media-grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.tweet-media-grid-3 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.tweet-media-grid-3 img:first-child {
+  grid-row: span 2;
+}
+
+.tweet-media-grid-4 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.tweet-content-link {
+  color: #1890ff;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.tweet-content-link:hover {
+  text-decoration: underline;
+}
+
+.tweet-ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tweet-timestamp {
+  color: #536471;
+  font-size: 15px;
+}
+
+.tweet-username {
+  color: #0f1419;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.tweet-handle {
+  color: #536471;
+  font-size: 15px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .tweet-card {
+    border-radius: 0;
+    margin-bottom: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  .tweet-card:first-child {
+    border-top: none;
+  }
+
+  .tweet-media-grid-3,
+  .tweet-media-grid-4 {
+    grid-template-columns: 1fr;
+  }
+
+  .tweet-media-grid-3 img:first-child {
+    grid-row: span 1;
+  }
+}

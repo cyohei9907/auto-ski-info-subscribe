@@ -1,14 +1,14 @@
-import React, { useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { Layout, Spin } from 'antd';
-import { useAuth } from './contexts/AuthContext';
-import api from './services/api';
-import LoginPage from './pages/LoginPage';
-import DashboardPage from './pages/DashboardPage';
-import AccountsPage from './pages/AccountsPage';
-import TweetsPage from './pages/TweetsPage';
-import LogsPage from './pages/LogsPage';
-import MainLayout from './components/MainLayout';
+import React, { useEffect } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { Layout, Spin } from "antd";
+import { useAuth } from "./contexts/AuthContext";
+import api from "./services/api";
+import LoginPage from "./pages/LoginPage";
+import DashboardPage from "./pages/DashboardPage";
+import AccountsPage from "./pages/AccountsPage";
+import TweetsPage from "./pages/TweetsPage";
+import LogsPage from "./pages/LogsPage";
+import MainLayout from "./components/MainLayout";
 
 const { Content } = Layout;
 
@@ -17,14 +17,21 @@ function App() {
 
   // アプリ起動時にCSRF tokenを取得
   useEffect(() => {
-    api.get('/auth/csrf/')
-      .catch(err => console.error('CSRF token fetch failed:', err));
+    api
+      .get("/auth/csrf/")
+      .catch((err) => console.error("CSRF token fetch failed:", err));
   }, []);
 
   if (loading) {
     return (
-      <Layout style={{ minHeight: '100vh', justifyContent: 'center', alignItems: 'center' }}>
-        <Content style={{ textAlign: 'center' }}>
+      <Layout
+        style={{
+          minHeight: "100vh",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <Content style={{ textAlign: "center" }}>
           <Spin size="large" />
           <div style={{ marginTop: 16 }}>読み込み中...</div>
         </Content>

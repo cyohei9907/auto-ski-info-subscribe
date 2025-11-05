@@ -13,6 +13,10 @@ mkdir -p /app/data
 echo "Running database migrations..."
 python manage.py migrate
 
+# Initialize users
+echo "Initializing users..."
+python init_users.py || true
+
 # Collect static files
 echo "Collecting static files..."
 python manage.py collectstatic --noinput

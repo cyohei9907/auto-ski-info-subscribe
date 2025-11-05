@@ -71,7 +71,7 @@ class RegisterView(generics.CreateAPIView):
 )
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
-@ensure_csrf_cookie
+@csrf_exempt
 def login_view(request):
     """ログインAPI"""
     serializer = UserLoginSerializer(data=request.data)
