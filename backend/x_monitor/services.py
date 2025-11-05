@@ -1,92 +1,197 @@
-import tweepy
 import logging
-from typing import List, Optional
+import re
+import asyncio
+from typing import List, Optional, Dict
 from datetime import datetime, timezone
 from django.conf import settings
 from django.utils import timezone as django_timezone
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+from bs4 import BeautifulSoup
 from .models import XAccount, Tweet, MonitoringLog
 
 logger = logging.getLogger(__name__)
 
 
-class XAPIClient:
-    """X (Twitter) API クライアント"""
+class XScraperClient:
+    """X (Twitter) Webスクレイピングクライアント"""
     
     def __init__(self):
-        self.client = None
-        self._initialize_client()
+        self.base_url = "https://twitter.com"
     
-    def _initialize_client(self):
-        """APIクライアントを初期化"""
+    def _extract_tweet_id(self, tweet_url: str) -> Optional[str]:
+        """ツイートURLからIDを抽出"""
+        match = re.search(r'/status/(\d+)', tweet_url)
+        return match.group(1) if match else None
+    
+    def _parse_tweet_time(self, time_str: str) -> datetime:
+        """相対時間を絶対時間に変換"""
+        now = django_timezone.now()
+        
+        # "2時間" -> 2時間前
+        if '時間' in time_str or 'h' in time_str:
+            hours = int(re.search(r'\d+', time_str).group())
+            return now - django_timezone.timedelta(hours=hours)
+        # "15分" -> 15分前
+        elif '分' in time_str or 'm' in time_str:
+            minutes = int(re.search(r'\d+', time_str).group())
+            return now - django_timezone.timedelta(minutes=minutes)
+        # "30秒" -> 30秒前
+        elif '秒' in time_str or 's' in time_str:
+            seconds = int(re.search(r'\d+', time_str).group())
+            return now - django_timezone.timedelta(seconds=seconds)
+        # "3日" -> 3日前
+        elif '日' in time_str or 'd' in time_str:
+            days = int(re.search(r'\d+', time_str).group())
+            return now - django_timezone.timedelta(days=days)
+        else:
+            return now
+    
+    def get_user_by_username(self, username: str) -> Optional[Dict]:
+        """ユーザー名からユーザー情報をスクレイピング"""
         try:
-            self.client = tweepy.Client(
-                bearer_token=settings.X_BEARER_TOKEN,
-                consumer_key=settings.X_API_KEY,
-                consumer_secret=settings.X_API_SECRET,
-                access_token=settings.X_ACCESS_TOKEN,
-                access_token_secret=settings.X_ACCESS_TOKEN_SECRET,
-                wait_on_rate_limit=True
-            )
-        except Exception as e:
-            logger.error(f"Failed to initialize X API client: {e}")
-            
-    def get_user_by_username(self, username: str) -> Optional[dict]:
-        """ユーザー名からユーザー情報を取得"""
-        try:
-            user = self.client.get_user(username=username, user_fields=['profile_image_url'])
-            if user.data:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                context = browser.new_context(
+                    viewport={'width': 1280, 'height': 720},
+                    user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                )
+                page = context.new_page()
+                
+                # ユーザープロフィールページにアクセス
+                url = f"{self.base_url}/{username}"
+                page.goto(url, wait_until='networkidle', timeout=30000)
+                page.wait_for_timeout(2000)  # 2秒待機
+                
+                # HTMLを取得
+                html = page.content()
+                soup = BeautifulSoup(html, 'lxml')
+                
+                # ユーザー名を取得
+                display_name_elem = soup.find('div', {'data-testid': 'UserName'})
+                display_name = display_name_elem.get_text() if display_name_elem else username
+                
+                # プロフィール画像を取得
+                avatar_elem = soup.find('img', {'alt': re.compile(f'.*{username}.*', re.IGNORECASE)})
+                avatar_url = avatar_elem['src'] if avatar_elem and 'src' in avatar_elem.attrs else None
+                
+                browser.close()
+                
+                # ユーザーIDを生成(スクレイピングではユーザーIDを取得できないため、ユーザー名をIDとして使用)
                 return {
-                    'id': user.data.id,
-                    'username': user.data.username,
-                    'name': user.data.name,
-                    'profile_image_url': user.data.profile_image_url
+                    'id': username,  # ユーザー名をIDとして使用
+                    'username': username,
+                    'name': display_name,
+                    'profile_image_url': avatar_url
                 }
+                
         except Exception as e:
-            logger.error(f"Error getting user {username}: {e}")
-        return None
+            logger.error(f"Error scraping user {username}: {e}")
+            return None
     
-    def get_recent_tweets(self, user_id: str, max_results: int = 10, since_id: Optional[str] = None) -> List[dict]:
-        """最新のツイートを取得"""
+    def get_recent_tweets(self, username: str, max_results: int = 10) -> List[Dict]:
+        """最新のツイートをスクレイピング"""
         try:
-            tweets = self.client.get_users_tweets(
-                id=user_id,
-                max_results=max_results,
-                since_id=since_id,
-                tweet_fields=['created_at', 'public_metrics', 'context_annotations', 'entities'],
-                exclude=['retweets', 'replies']
-            )
-            
-            if not tweets.data:
-                return []
-            
-            tweet_list = []
-            for tweet in tweets.data:
-                tweet_data = {
-                    'id': tweet.id,
-                    'text': tweet.text,
-                    'created_at': tweet.created_at,
-                    'retweet_count': tweet.public_metrics.get('retweet_count', 0),
-                    'like_count': tweet.public_metrics.get('like_count', 0),
-                    'reply_count': tweet.public_metrics.get('reply_count', 0),
-                    'hashtags': [],
-                    'mentions': [],
-                    'media_urls': []
-                }
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                context = browser.new_context(
+                    viewport={'width': 1280, 'height': 720},
+                    user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                )
+                page = context.new_page()
                 
-                # エンティティの解析
-                if hasattr(tweet, 'entities'):
-                    entities = tweet.entities
-                    if 'hashtags' in entities:
-                        tweet_data['hashtags'] = [tag['tag'] for tag in entities['hashtags']]
-                    if 'mentions' in entities:
-                        tweet_data['mentions'] = [mention['username'] for mention in entities['mentions']]
+                # ユーザーのタイムラインにアクセス
+                url = f"{self.base_url}/{username}"
+                page.goto(url, wait_until='networkidle', timeout=30000)
                 
-                tweet_list.append(tweet_data)
-            
-            return tweet_list
-            
+                # ページをスクロールしてツイートを読み込む
+                for _ in range(3):
+                    page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+                    page.wait_for_timeout(1000)
+                
+                # HTMLを取得
+                html = page.content()
+                soup = BeautifulSoup(html, 'lxml')
+                
+                # ツイートを解析
+                tweets = []
+                tweet_articles = soup.find_all('article', {'data-testid': 'tweet'})
+                
+                for article in tweet_articles[:max_results]:
+                    try:
+                        # ツイートテキスト
+                        tweet_text_elem = article.find('div', {'data-testid': 'tweetText'})
+                        tweet_text = tweet_text_elem.get_text() if tweet_text_elem else ""
+                        
+                        # ツイートID (URLから取得)
+                        tweet_link = article.find('a', href=re.compile(r'/status/\d+'))
+                        tweet_id = None
+                        if tweet_link and 'href' in tweet_link.attrs:
+                            tweet_id = self._extract_tweet_id(tweet_link['href'])
+                        
+                        if not tweet_id:
+                            continue
+                        
+                        # 投稿時間
+                        time_elem = article.find('time')
+                        posted_at = None
+                        if time_elem and 'datetime' in time_elem.attrs:
+                            posted_at = datetime.fromisoformat(time_elem['datetime'].replace('Z', '+00:00'))
+                        else:
+                            # 相対時間から推定
+                            time_text = time_elem.get_text() if time_elem else ""
+                            posted_at = self._parse_tweet_time(time_text)
+                        
+                        # ハッシュタグとメンション
+                        hashtags = [tag.get_text()[1:] for tag in article.find_all('a', href=re.compile(r'/hashtag/'))]
+                        mentions = [mention.get_text()[1:] for mention in article.find_all('a', href=re.compile(r'/[^/]+$')) if mention.get_text().startswith('@')]
+                        
+                        # エンゲージメント指標
+                        reply_count = 0
+                        retweet_count = 0
+                        like_count = 0
+                        
+                        # 返信数
+                        reply_elem = article.find('button', {'data-testid': 'reply'})
+                        if reply_elem:
+                            reply_text = reply_elem.get_text()
+                            reply_match = re.search(r'\d+', reply_text)
+                            reply_count = int(reply_match.group()) if reply_match else 0
+                        
+                        # リツイート数
+                        retweet_elem = article.find('button', {'data-testid': 'retweet'})
+                        if retweet_elem:
+                            retweet_text = retweet_elem.get_text()
+                            retweet_match = re.search(r'\d+', retweet_text)
+                            retweet_count = int(retweet_match.group()) if retweet_match else 0
+                        
+                        # いいね数
+                        like_elem = article.find('button', {'data-testid': 'like'})
+                        if like_elem:
+                            like_text = like_elem.get_text()
+                            like_match = re.search(r'\d+', like_text)
+                            like_count = int(like_match.group()) if like_match else 0
+                        
+                        tweets.append({
+                            'id': tweet_id,
+                            'text': tweet_text,
+                            'created_at': posted_at,
+                            'retweet_count': retweet_count,
+                            'like_count': like_count,
+                            'reply_count': reply_count,
+                            'hashtags': hashtags,
+                            'mentions': mentions,
+                            'media_urls': []
+                        })
+                        
+                    except Exception as e:
+                        logger.warning(f"Error parsing individual tweet: {e}")
+                        continue
+                
+                browser.close()
+                return tweets
+                
         except Exception as e:
-            logger.error(f"Error getting tweets for user {user_id}: {e}")
+            logger.error(f"Error scraping tweets for user {username}: {e}")
             return []
 
 
@@ -94,21 +199,16 @@ class XMonitorService:
     """X監視サービス"""
     
     def __init__(self):
-        self.api_client = XAPIClient()
+        self.scraper_client = XScraperClient()
     
     def monitor_account(self, x_account: XAccount) -> dict:
         """アカウントを監視して新しいツイートを取得"""
         start_time = django_timezone.now()
         
         try:
-            # 最新のツイートIDを取得
-            latest_tweet = x_account.tweets.first()
-            since_id = latest_tweet.tweet_id if latest_tweet else None
-            
-            # APIからツイートを取得
-            tweets_data = self.api_client.get_recent_tweets(
-                user_id=x_account.user_id,
-                since_id=since_id,
+            # Webスクレイピングでツイートを取得
+            tweets_data = self.scraper_client.get_recent_tweets(
+                username=x_account.username,
                 max_results=20
             )
             
@@ -175,7 +275,7 @@ class XMonitorService:
     def setup_account_monitoring(self, username: str) -> Optional[dict]:
         """アカウント監視のセットアップ"""
         try:
-            user_info = self.api_client.get_user_by_username(username)
+            user_info = self.scraper_client.get_user_by_username(username)
             if not user_info:
                 return None
                 

@@ -35,6 +35,7 @@ const LoginPage = () => {
 
   return (
     <div
+      className="login-page-container"
       style={{
         minHeight: '100vh',
         background: '#f5f5f5',
@@ -46,33 +47,12 @@ const LoginPage = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '24px',
+        padding: '16px',
         position: 'relative',
       }}
     >
-      {/* Wireframe装飾 */}
-      <div style={{
-        position: 'absolute',
-        top: '20px',
-        left: '20px',
-        width: '100px',
-        height: '100px',
-        border: '3px solid #1890ff',
-        borderRadius: '50%',
-        opacity: 0.3,
-      }} />
-      <div style={{
-        position: 'absolute',
-        bottom: '40px',
-        right: '40px',
-        width: '150px',
-        height: '150px',
-        border: '3px solid #52c41a',
-        opacity: 0.3,
-      }} />
-
-      <Row justify="center" style={{ width: '100%', maxWidth: '1200px' }}>
-        <Col xs={24} sm={20} md={16} lg={14} xl={10}>
+      <Row justify="center" style={{ width: '100%', maxWidth: '500px' }}>
+        <Col xs={24} sm={24} md={24} lg={24} xl={24}>
           <Card
             style={{
               background: 'white',
@@ -81,42 +61,34 @@ const LoginPage = () => {
               boxShadow: '8px 8px 0 rgba(0, 0, 0, 0.1)',
               position: 'relative',
             }}
-            bodyStyle={{ padding: '48px' }}
+            bodyStyle={{ padding: '32px 24px' }}
           >
             {/* ヘッダーセクション */}
-            <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
               <div style={{
-                width: '80px',
-                height: '80px',
+                width: '64px',
+                height: '64px',
                 border: '3px solid #1890ff',
                 borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                margin: '0 auto 20px',
+                margin: '0 auto 16px',
                 background: '#e6f7ff',
               }}>
-                <TwitterOutlined style={{ fontSize: '36px', color: '#1890ff' }} />
+                <TwitterOutlined style={{ fontSize: '28px', color: '#1890ff' }} />
               </div>
-              <Title level={2} style={{ 
+              <Title level={3} style={{ 
                 color: '#262626', 
                 marginBottom: '8px',
                 fontWeight: 700,
-                letterSpacing: '-0.5px',
+                fontSize: '20px',
               }}>
-                Auto Ski Info Subscribe
+                Auto Ski Info
               </Title>
-              <Text style={{ 
-                fontSize: '14px', 
-                color: '#8c8c8c',
-                display: 'block',
-                marginBottom: '8px',
-              }}>
-                X (Twitter) スキー場情報監視システム
-              </Text>
-              <Divider style={{ margin: '24px 0', borderColor: '#d9d9d9' }} />
+              <Divider style={{ margin: '16px 0', borderColor: '#d9d9d9' }} />
               <Text strong style={{ 
-                fontSize: '18px', 
+                fontSize: '16px', 
                 color: '#262626',
                 display: 'block',
               }}>
@@ -330,35 +302,7 @@ const LoginPage = () => {
               </Button>
             </div>
 
-            {/* デフォルトログイン情報 */}
-            {isLogin && (
-              <div style={{
-                marginTop: '24px',
-                padding: '16px',
-                background: '#f0f0f0',
-                border: '2px dashed #d9d9d9',
-              }}>
-                <Text style={{ 
-                  fontSize: '12px', 
-                  color: '#8c8c8c',
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                }}>
-                  デフォルトログイン情報
-                </Text>
-                <div style={{ fontSize: '13px', color: '#595959' }}>
-                  <div style={{ marginBottom: '4px' }}>
-                    <Text strong>ユーザー名:</Text> <Text code>admin</Text>
-                  </div>
-                  <div>
-                    <Text strong>パスワード:</Text> <Text code>admin@123</Text>
-                  </div>
-                </div>
-              </div>
-            )}
+
           </Card>
         </Col>
       </Row>

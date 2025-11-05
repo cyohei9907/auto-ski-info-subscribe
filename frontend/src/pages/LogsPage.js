@@ -33,12 +33,14 @@ const LogsPage = () => {
     {
       title: 'アカウント',
       dataIndex: 'x_account_username',
+      width: 120,
+      fixed: 'left',
       render: (username) => `@${username}`,
     },
     {
       title: '結果',
       dataIndex: 'result',
-      width: 150,
+      width: 120,
       render: (result) => (
         <Tag color={getResultColor(result)}>
           {getResultText(result)}
@@ -46,28 +48,34 @@ const LogsPage = () => {
       ),
     },
     {
-      title: '取得ツイート数',
+      title: 'ツイート数',
       dataIndex: 'tweets_found',
-      width: 120,
+      width: 100,
       align: 'center',
     },
     {
       title: '実行時間',
       dataIndex: 'execution_time',
-      width: 120,
+      width: 100,
       render: (time) => `${time.toFixed(2)}秒`,
     },
     {
-      title: 'エラーメッセージ',
+      title: 'エラー',
       dataIndex: 'error_message',
+      width: 200,
       ellipsis: true,
       render: (message) => message || '-',
     },
     {
       title: '実行日時',
       dataIndex: 'created_at',
-      width: 180,
-      render: (created_at) => new Date(created_at).toLocaleString('ja-JP'),
+      width: 150,
+      render: (created_at) => new Date(created_at).toLocaleString('ja-JP', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
     },
   ];
 
@@ -99,12 +107,14 @@ const LogsPage = () => {
           dataSource={Array.isArray(logs?.data) ? logs.data : []}
           loading={isLoading}
           rowKey="id"
+          scroll={{ x: 800 }}
           pagination={{
             pageSize: 20,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) =>
               `${range[0]}-${range[1]} / ${total} 件`,
+            responsive: true,
           }}
           expandable={{
             expandedRowRender: (record) => (
@@ -116,7 +126,9 @@ const LogsPage = () => {
                     padding: 12, 
                     marginTop: 8,
                     borderRadius: 4,
-                    fontSize: '12px'
+                    fontSize: '12px',
+                    overflow: 'auto',
+                    maxWidth: '100%'
                   }}>
                     {record.error_message}
                   </pre>

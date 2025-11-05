@@ -3,7 +3,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import login, logout
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
+from django.utils.decorators import method_decorator
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
@@ -16,6 +17,7 @@ from .serializers import (
 )
 
 
+@method_decorator(ensure_csrf_cookie, name='dispatch')
 class RegisterView(generics.CreateAPIView):
     """ユーザー登録API"""
     queryset = User.objects.all()
@@ -42,10 +44,12 @@ class RegisterView(generics.CreateAPIView):
         # トークン作成
         token, created = Token.objects.get_or_create(user=user)
         
-        return Response({
+        response = Response({
             'user': UserSerializer(user).data,
             'token': token.key
         }, status=status.HTTP_201_CREATED)
+        
+        return response
 
 
 @swagger_auto_schema(
@@ -67,6 +71,7 @@ class RegisterView(generics.CreateAPIView):
 )
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
+@ensure_csrf_cookie
 def login_view(request):
     """ログインAPI"""
     serializer = UserLoginSerializer(data=request.data)
@@ -77,10 +82,12 @@ def login_view(request):
     
     token, created = Token.objects.get_or_create(user=user)
     
-    return Response({
+    response = Response({
         'user': UserSerializer(user).data,
         'token': token.key
     })
+    
+    return response
 
 
 @swagger_auto_schema(
@@ -116,3 +123,11 @@ class UserDetailView(generics.RetrieveAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+@ensure_csrf_cookie
+def get_csrf_token(request):
+    """CSRF Token取得API"""
+    return Response({'detail': 'CSRF cookie set'})

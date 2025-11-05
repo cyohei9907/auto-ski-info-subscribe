@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Layout, Spin } from 'antd';
 import { useAuth } from './contexts/AuthContext';
+import api from './services/api';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import AccountsPage from './pages/AccountsPage';
@@ -13,6 +14,12 @@ const { Content } = Layout;
 
 function App() {
   const { isAuthenticated, loading } = useAuth();
+
+  // アプリ起動時にCSRF tokenを取得
+  useEffect(() => {
+    api.get('/auth/csrf/')
+      .catch(err => console.error('CSRF token fetch failed:', err));
+  }, []);
 
   if (loading) {
     return (

@@ -25,11 +25,6 @@ services:
       ALLOWED_HOSTS: "localhost,127.0.0.1,backend"
       REDIS_URL: "redis://redis:6379/0"
       # API Keys - システム環境変数から取得
-      X_API_KEY: ${X_API_KEY:-}
-      X_API_SECRET: ${X_API_SECRET:-}
-      X_ACCESS_TOKEN: ${X_ACCESS_TOKEN:-}
-      X_ACCESS_TOKEN_SECRET: ${X_ACCESS_TOKEN_SECRET:-}
-      X_BEARER_TOKEN: ${X_BEARER_TOKEN:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     volumes:
       - ./backend:/app
@@ -47,11 +42,6 @@ services:
       USE_CLOUD_SQL: "False"
       DEBUG: "True"
       REDIS_URL: "redis://redis:6379/0"
-      X_API_KEY: ${X_API_KEY:-}
-      X_API_SECRET: ${X_API_SECRET:-}
-      X_ACCESS_TOKEN: ${X_ACCESS_TOKEN:-}
-      X_ACCESS_TOKEN_SECRET: ${X_ACCESS_TOKEN_SECRET:-}
-      X_BEARER_TOKEN: ${X_BEARER_TOKEN:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     volumes:
       - ./backend:/app
@@ -69,11 +59,6 @@ services:
       USE_CLOUD_SQL: "False"
       DEBUG: "True"
       REDIS_URL: "redis://redis:6379/0"
-      X_API_KEY: ${X_API_KEY:-}
-      X_API_SECRET: ${X_API_SECRET:-}
-      X_ACCESS_TOKEN: ${X_ACCESS_TOKEN:-}
-      X_ACCESS_TOKEN_SECRET: ${X_ACCESS_TOKEN_SECRET:-}
-      X_BEARER_TOKEN: ${X_BEARER_TOKEN:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     volumes:
       - ./backend:/app

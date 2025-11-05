@@ -156,6 +156,12 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
+# CSRF Cookie設定
+CSRF_COOKIE_HTTPONLY = False  # JavaScriptからアクセス可能にする
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SECURE = False  # 開発環境用、本番環境ではTrueに
+CSRF_USE_SESSIONS = False
+
 # Swagger settings
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {
@@ -177,14 +183,6 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
-
-# X (Twitter) API settings
-# 環境変数から取得
-X_API_KEY = config('X_API_KEY', default='')
-X_API_SECRET = config('X_API_SECRET', default='')
-X_ACCESS_TOKEN = config('X_ACCESS_TOKEN', default='')
-X_ACCESS_TOKEN_SECRET = config('X_ACCESS_TOKEN_SECRET', default='')
-X_BEARER_TOKEN = config('X_BEARER_TOKEN', default='')
 
 # Gemini AI settings
 # ローカルでは環境変数、Cloud Run では Secret Manager から取得

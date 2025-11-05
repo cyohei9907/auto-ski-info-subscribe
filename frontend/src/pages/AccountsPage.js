@@ -99,22 +99,25 @@ const AccountsPage = () => {
     {
       title: 'アバター',
       dataIndex: 'avatar_url',
-      width: 80,
+      width: 60,
+      fixed: 'left',
       render: (avatar_url, record) =>
         avatar_url ? (
-          <Avatar src={avatar_url} />
+          <Avatar src={avatar_url} size={32} />
         ) : (
-          <Avatar icon={<TwitterOutlined />} />
+          <Avatar icon={<TwitterOutlined />} size={32} />
         ),
     },
     {
       title: 'ユーザー名',
       dataIndex: 'username',
+      width: 150,
       render: (username) => `@${username}`,
     },
     {
       title: '表示名',
       dataIndex: 'display_name',
+      width: 150,
     },
     {
       title: 'ツイート数',
@@ -138,13 +141,19 @@ const AccountsPage = () => {
       width: 150,
       render: (last_checked) =>
         last_checked
-          ? new Date(last_checked).toLocaleString('ja-JP')
+          ? new Date(last_checked).toLocaleString('ja-JP', {
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit'
+            })
           : '未実行',
     },
     {
       title: '操作',
       key: 'actions',
       width: 200,
+      fixed: 'right',
       render: (_, record) => (
         <Space size="small">
           <Button
@@ -161,9 +170,8 @@ const AccountsPage = () => {
             onClick={() => handleMonitorNow(record.id)}
             loading={monitorNowMutation.isLoading}
             disabled={!record.is_active}
-          >
-            今すぐ監視
-          </Button>
+            title="今すぐ監視"
+          />
           <Popconfirm
             title="このアカウントを削除しますか？"
             onConfirm={() => handleDeleteAccount(record.id)}
@@ -220,11 +228,13 @@ const AccountsPage = () => {
           dataSource={Array.isArray(accounts?.data) ? accounts.data : []}
           loading={isLoading}
           rowKey="id"
+          scroll={{ x: 800 }}
           pagination={{
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) =>
               `${range[0]}-${range[1]} / ${total} 件`,
+            responsive: true,
           }}
         />
       </Card>
