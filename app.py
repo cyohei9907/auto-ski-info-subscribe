@@ -81,7 +81,7 @@ def get_latest_research():
         app_logger.error(f"Error fetching research results: {e}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Failed to retrieve research results'
         }), 500
 
 
@@ -109,7 +109,7 @@ def get_research_by_platform(platform):
         app_logger.error(f"Error fetching research for platform {platform}: {e}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Failed to retrieve research results for platform'
         }), 500
 
 
@@ -137,7 +137,7 @@ def get_research_by_user(username):
         app_logger.error(f"Error fetching research for user {username}: {e}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Failed to retrieve research results for user'
         }), 500
 
 
@@ -155,7 +155,7 @@ def trigger_twitter_crawl():
         app_logger.error(f"Manual Twitter crawl failed: {e}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Failed to complete Twitter crawl'
         }), 500
 
 
@@ -173,7 +173,7 @@ def trigger_xiaohongshu_crawl():
         app_logger.error(f"Manual Xiaohongshu crawl failed: {e}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Failed to complete Xiaohongshu crawl'
         }), 500
 
 
@@ -202,7 +202,7 @@ def analyze_post():
         app_logger.error(f"Analysis failed: {e}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'Failed to analyze post'
         }), 500
 
 

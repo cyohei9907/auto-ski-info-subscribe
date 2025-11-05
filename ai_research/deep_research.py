@@ -72,7 +72,7 @@ class DeepResearcher:
             
         except Exception as e:
             self.logger.error(f"Failed to analyze post: {e}")
-            return {'error': str(e)}
+            return {'error': 'Analysis failed due to an internal error'}
     
     def analyze_multiple_posts(self, posts: List[Dict], platform: str = None) -> List[Dict]:
         """
@@ -163,7 +163,7 @@ Please provide:
             
         except Exception as e:
             self.logger.error(f"Failed to generate trend report: {e}")
-            return {'error': str(e)}
+            return {'error': 'Trend report generation failed due to an internal error'}
     
     def _create_analysis_prompt(self, post_text: str, platform: str = None) -> str:
         """
