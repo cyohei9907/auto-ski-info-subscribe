@@ -50,7 +50,8 @@ nano .env
 ### 4. 启动服务 (Start Service)
 
 ```bash
-# 使用启动脚本
+# 使用启动脚本 (需要先设置执行权限)
+chmod +x run.sh
 ./run.sh
 
 # 或直接运行

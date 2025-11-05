@@ -240,21 +240,26 @@ Provide a detailed but concise analysis."""
     
     def _analyze_sentiment(self, text: str) -> str:
         """
-        Basic sentiment analysis
+        Basic sentiment analysis using simple heuristics
+        
+        Note: This is a simplified implementation. For production use, consider:
+        - Using TextBlob or VADER sentiment analysis libraries
+        - Leveraging OpenAI's sentiment capabilities
+        - Training a domain-specific sentiment model
         
         Args:
             text: Text to analyze
             
         Returns:
-            Sentiment label
+            Sentiment label (positive, negative, or neutral)
         """
-        # This is a simplified version. For production, consider using
-        # specialized sentiment analysis models or APIs
-        
+        # Expanded word lists including ski/outdoor activity context
         positive_words = ['good', 'great', 'excellent', 'amazing', 'wonderful', 
-                         'fantastic', 'love', 'best', 'happy', 'awesome']
+                         'fantastic', 'love', 'best', 'happy', 'awesome', 'perfect',
+                         'beautiful', 'exciting', 'incredible', 'enjoy', 'fun']
         negative_words = ['bad', 'terrible', 'awful', 'hate', 'worst', 'poor',
-                         'disappointing', 'sad', 'angry', 'frustrated']
+                         'disappointing', 'sad', 'angry', 'frustrated', 'dangerous',
+                         'closed', 'crowded', 'expensive', 'difficult']
         
         text_lower = text.lower()
         positive_count = sum(1 for word in positive_words if word in text_lower)

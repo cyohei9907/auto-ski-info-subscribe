@@ -110,14 +110,12 @@ class XiaohongshuCrawler(BaseCrawler):
                 f"JavaScript rendering (Selenium/Playwright) for user {username}"
             )
             
-            # Placeholder post structure
-            posts.append({
-                'id': 'placeholder',
-                'username': username,
-                'text': 'Xiaohongshu crawler requires proper implementation with browser automation',
-                'created_at': None,
-                'note': 'This is a placeholder. Implement with Selenium/Playwright for real data.'
-            })
+            # Return empty list - proper implementation requires browser automation
+            # See get_user_posts_api() for API-based approach
+            self.logger.info(
+                f"Xiaohongshu crawler returns empty - "
+                f"requires Selenium/Playwright implementation for user {username}"
+            )
             
         except requests.RequestException as e:
             self.logger.error(f"Network error fetching Xiaohongshu data for {username}: {e}")

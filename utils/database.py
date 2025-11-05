@@ -47,7 +47,7 @@ class DatabaseManager:
             post_data.update({
                 'platform': platform,
                 'username': username,
-                'created_at': datetime.utcnow(),
+                'created_at': datetime.now(),
                 'processed': False
             })
             result = self.posts_collection.insert_one(post_data)
@@ -62,7 +62,7 @@ class DatabaseManager:
         Store AI research results
         
         Args:
-            post_id: ID of the related post
+            post_id: ID of the related post (as string)
             research_data: Research results dictionary
             
         Returns:
@@ -73,9 +73,11 @@ class DatabaseManager:
             return None
             
         try:
+            from bson.objectid import ObjectId
+            # Convert string post_id to ObjectId for proper lookup
             research_data.update({
-                'post_id': post_id,
-                'created_at': datetime.utcnow()
+                'post_id': ObjectId(post_id) if ObjectId.is_valid(post_id) else post_id,
+                'created_at': datetime.now()
             })
             result = self.research_collection.insert_one(research_data)
             app_logger.info(f"Stored research for post {post_id}")
@@ -123,7 +125,7 @@ class DatabaseManager:
             from bson.objectid import ObjectId
             self.posts_collection.update_one(
                 {'_id': ObjectId(post_id)},
-                {'$set': {'processed': True, 'processed_at': datetime.utcnow()}}
+                {'$set': {'processed': True, 'processed_at': datetime.now()}}
             )
             return True
         except Exception as e:

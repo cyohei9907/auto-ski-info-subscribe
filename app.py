@@ -53,7 +53,7 @@ def health():
     """Health check endpoint"""
     return jsonify({
         'status': 'healthy',
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now().isoformat(),
         'scheduler_running': crawler_scheduler.scheduler.running if crawler_scheduler.scheduler else False
     })
 
