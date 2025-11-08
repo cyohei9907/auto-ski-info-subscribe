@@ -834,12 +834,33 @@ def debug_scrape_url(request):
             
             page = context.new_page()
             
-            # 访问URL
+            # 访问URL（使用更宽松的等待策略）
             logger.info(f"正在访问: {url}")
-            page.goto(url, wait_until='networkidle', timeout=90000)
+            try:
+                # 先尝试使用 domcontentloaded，不等待所有网络请求完成
+                page.goto(url, wait_until='domcontentloaded', timeout=60000)
+                logger.info("页面 DOM 加载完成")
+            except Exception as e:
+                logger.warning(f"domcontentloaded 超时，尝试 load 策略: {e}")
+                try:
+                    # 如果失败，尝试基本的 load 事件
+                    page.goto(url, wait_until='load', timeout=60000)
+                    logger.info("页面 load 事件完成")
+                except Exception as e2:
+                    logger.warning(f"load 也超时，使用当前页面内容: {e2}")
+                    # 即使超时也继续，可能页面已经部分加载
             
-            # 等待页面加载
-            time.sleep(3)
+            # 等待页面渲染
+            logger.info("等待页面渲染...")
+            time.sleep(5)
+            
+            # 尝试等待主要内容加载（X.com 特定）
+            try:
+                # 等待任何推文元素出现
+                page.wait_for_selector('article, [data-testid="tweet"]', timeout=10000)
+                logger.info("检测到推文元素")
+            except Exception as e:
+                logger.warning(f"未检测到推文元素，继续获取HTML: {e}")
             
             # 获取HTML内容
             html_content = page.content()
@@ -864,6 +885,15 @@ def debug_scrape_url(request):
                 f.write(html_content)
             
             logger.info(f"HTML已保存到: {debug_filepath}")
+            
+            # 截图以供调试
+            try:
+                screenshot_filename = f"debug_custom_{path_clean}_{timestamp}.png"
+                screenshot_filepath = Path(settings.BASE_DIR) / 'data' / screenshot_filename
+                page.screenshot(path=str(screenshot_filepath), full_page=False)
+                logger.info(f"截图已保存到: {screenshot_filepath}")
+            except Exception as e:
+                logger.warning(f"截图失败: {e}")
             
             # 关闭浏览器
             browser.close()
