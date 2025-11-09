@@ -28,7 +28,7 @@ services:
       SECRET_KEY: "django-insecure-local-dev-key"
       ALLOWED_HOSTS: "localhost,127.0.0.1,backend"
       REDIS_URL: "redis://redis:6379/0"
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AI_API_KEY_GOOGLE: ${AI_API_KEY_GOOGLE:-}
       PYTHONUNBUFFERED: "1"
     volumes:
       - ./backend:/app
@@ -54,7 +54,7 @@ services:
       USE_CLOUD_SQL: "False"
       DEBUG: "True"
       REDIS_URL: "redis://redis:6379/0"
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AI_API_KEY_GOOGLE: ${AI_API_KEY_GOOGLE:-}
       PYTHONUNBUFFERED: "1"
     volumes:
       - ./backend:/app
@@ -78,7 +78,7 @@ services:
       USE_CLOUD_SQL: "False"
       DEBUG: "True"
       REDIS_URL: "redis://redis:6379/0"
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AI_API_KEY_GOOGLE: ${AI_API_KEY_GOOGLE:-}
       PYTHONUNBUFFERED: "1"
     volumes:
       - ./backend:/app

@@ -124,7 +124,7 @@ SECRET_KEY=django-insecure-local-dev-key-for-windows
 ALLOWED_HOSTS=localhost,127.0.0.1
 REDIS_URL=redis://localhost:6379/0
 USE_AUTHENTICATED_SCRAPER=True
-GEMINI_API_KEY=
+AI_API_KEY_GOOGLE=
 ```
 
 ### frontend/.env

@@ -158,7 +158,7 @@ docker run -d --name auto-ski-redis -p 6379:6379 redis:7-alpine
 
 所有环境变量都在 `.env` 文件中配置，包括：
 
-- `GEMINI_API_KEY` - Google Gemini AI API 密钥
+- `AI_API_KEY_GOOGLE` - Google Gemini AI API 密钥
 - `X_API_KEY` 等 - Twitter/X API 凭据
 - `DEBUG` - 调试模式开关
 - `REDIS_URL` - Redis 连接 URL

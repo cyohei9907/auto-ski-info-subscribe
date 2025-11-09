@@ -23,7 +23,7 @@ services:
       DEBUG: "True"
       REDIS_URL: "redis://redis:6379/0"
       USE_AUTHENTICATED_SCRAPER: "True"
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AI_API_KEY_GOOGLE: ${AI_API_KEY_GOOGLE:-}
     volumes:
       - ./backend:/app
       - sqlite_data:/app/data
@@ -42,7 +42,7 @@ services:
       DEBUG: "True"
       REDIS_URL: "redis://redis:6379/0"
       USE_AUTHENTICATED_SCRAPER: "True"
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AI_API_KEY_GOOGLE: ${AI_API_KEY_GOOGLE:-}
     volumes:
       - ./backend:/app
       - sqlite_data:/app/data

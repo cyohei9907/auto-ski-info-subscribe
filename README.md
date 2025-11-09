@@ -155,7 +155,7 @@ auto-ski-info-subscribe/
 [System.Environment]::SetEnvironmentVariable('X_ACCESS_TOKEN', 'your-token', 'User')
 [System.Environment]::SetEnvironmentVariable('X_ACCESS_TOKEN_SECRET', 'your-secret', 'User')
 [System.Environment]::SetEnvironmentVariable('X_BEARER_TOKEN', 'your-bearer', 'User')
-[System.Environment]::SetEnvironmentVariable('GEMINI_API_KEY', 'your-key', 'User')
+[System.Environment]::SetEnvironmentVariable('AI_API_KEY_GOOGLE', 'your-gemini-key', 'User')
 # PowerShell を再起動
 ```
 
@@ -167,7 +167,7 @@ export X_API_SECRET="your-secret"
 export X_ACCESS_TOKEN="your-token"
 export X_ACCESS_TOKEN_SECRET="your-secret"
 export X_BEARER_TOKEN="your-bearer"
-export GEMINI_API_KEY="your-key"
+export AI_API_KEY_GOOGLE="your-gemini-key"
 # ~/.bashrc または ~/.zshrc に追加して永続化
 ```
 
@@ -360,7 +360,7 @@ app.conf.beat_schedule = {
 
 ```bash
 # API キーと quota を確認
-# GEMINI_API_KEY が正しく設定されているか確認
+# AI_API_KEY_GOOGLE が正しく設定されているか確認
 ```
 
 #### 3. データベース接続エラー

@@ -5,14 +5,16 @@
 ### ローカル開発環境
 
 #### データベース
+
 - **種類**: SQLite
 - **場所**: `backend/data/db.sqlite3`
 - **設定**: 自動（設定不要）
 
-#### APIキー取得方法
+#### API キー取得方法
+
 - **環境変数**から自動取得
 - システム環境変数に設定:
-  - `GEMINI_API_KEY`
+  - `AI_API_KEY_GOOGLE`
   - `X_API_KEY`
   - `X_API_SECRET`
   - `X_ACCESS_TOKEN`
@@ -20,6 +22,7 @@
   - `X_BEARER_TOKEN`
 
 #### 設定ファイル
+
 ```bash
 # backend/.env（オプション）
 USE_CLOUD_SQL=False
@@ -29,15 +32,17 @@ DEBUG=True
 ### 本番環境（Google Cloud Run）
 
 #### データベース
+
 - **種類**: Cloud SQL (PostgreSQL)
 - **インスタンス**: `gen-lang-client-0543160602:asia-northeast1:ai-project-database`
 - **データベース名**: `ski-scrapy`
 - **接続**: Unix ソケット (`/cloudsql/...`)
 
-#### APIキー取得方法
+#### API キー取得方法
+
 - **Secret Manager**から自動取得
 - 必要なシークレット:
-  - `AI_API_KEY_GOOGLE` - Gemini APIキー
+  - `AI_API_KEY_GOOGLE` - Gemini API キー
   - `DATABASE_PASSWORD` - データベースパスワード
   - `X_API_KEY` - Twitter API Key
   - `X_API_SECRET` - Twitter API Secret
@@ -46,6 +51,7 @@ DEBUG=True
   - `X_BEARER_TOKEN` - Twitter Bearer Token
 
 #### 設定
+
 - `USE_CLOUD_SQL=True`（自動設定）
 - `DEBUG=False`（自動設定）
 - Cloud Build の `cloudbuild.yaml` で自動設定
@@ -76,8 +82,7 @@ else:
     }
 
 # Gemini APIキー - 環境に応じて自動切り替え
-GEMINI_API_KEY = config('AI_API_KEY_GOOGLE',  # Cloud: Secret Manager
-                       default=config('GEMINI_API_KEY', default=''))  # Local: 環境変数
+GEMINI_API_KEY = config('AI_API_KEY_GOOGLE', default='')  # Cloud & Local: AI_API_KEY_GOOGLE
 ```
 
 ## 起動方法
@@ -86,7 +91,7 @@ GEMINI_API_KEY = config('AI_API_KEY_GOOGLE',  # Cloud: Secret Manager
 
 ```bash
 # 1. システム環境変数にAPIキーを設定
-export GEMINI_API_KEY="your-key"
+export AI_API_KEY_GOOGLE="your-gemini-key"
 export X_BEARER_TOKEN="your-token"
 # ... 他のキーも同様
 
@@ -116,6 +121,7 @@ docker-compose up -d
 ## サービス構成
 
 ### ローカル開発
+
 ```
 ├── backend (Django + SQLite)
 ├── frontend (React)
@@ -125,6 +131,7 @@ docker-compose up -d
 ```
 
 ### 本番環境
+
 ```
 ├── auto-ski-info-backend (Cloud Run)
 │   ├── Django API
@@ -138,6 +145,7 @@ docker-compose up -d
 ## チェックリスト
 
 ### ローカル開発開始前
+
 - [ ] Docker Desktop インストール
 - [ ] X API キー取得
 - [ ] Gemini API キー取得
@@ -146,27 +154,30 @@ docker-compose up -d
 - [ ] `docker-compose up -d` 実行
 
 ### 本番デプロイ前
+
 - [ ] gcloud CLI インストール・認証
-- [ ] プロジェクトIDが `gen-lang-client-0543160602` であることを確認
+- [ ] プロジェクト ID が `gen-lang-client-0543160602` であることを確認
 - [ ] Cloud SQL インスタンス `ai-project-database` 存在確認
 - [ ] データベース `ski-scrapy` 作成済み確認
-- [ ] すべてのAPIキー準備済み
+- [ ] すべての API キー準備済み
 - [ ] `./setup-secrets.sh` 実行
 - [ ] `./deploy.sh` 実行
 
 ## トラブルシューティング
 
-### ローカル: APIキーが認識されない
+### ローカル: API キーが認識されない
+
 ```bash
 # 環境変数を確認
 docker-compose exec backend env | grep API_KEY
 
 # システム環境変数を確認
-echo $GEMINI_API_KEY  # Linux/Mac
-echo $env:GEMINI_API_KEY  # Windows PowerShell
+echo $AI_API_KEY_GOOGLE  # Linux/Mac
+echo $env:AI_API_KEY_GOOGLE  # Windows PowerShell
 ```
 
-### 本番: Secret Managerエラー
+### 本番: Secret Manager エラー
+
 ```bash
 # シークレット一覧を確認
 gcloud secrets list
@@ -179,6 +190,7 @@ gcloud secrets get-iam-policy AI_API_KEY_GOOGLE
 ```
 
 ### ローカル: データベースリセット
+
 ```bash
 # SQLiteファイルを削除
 docker-compose down
@@ -190,11 +202,13 @@ docker-compose exec backend python manage.py migrate
 ## セキュリティ注意事項
 
 ### ローカル開発
-- ✅ システム環境変数にAPIキーを保存（リポジトリに含めない）
+
+- ✅ システム環境変数に API キーを保存（リポジトリに含めない）
 - ✅ `.env` ファイルは `.gitignore` に含まれている
-- ❌ APIキーをコードにハードコードしない
+- ❌ API キーをコードにハードコードしない
 
 ### 本番環境
+
 - ✅ Secret Manager で機密情報を管理
 - ✅ Cloud Run のサービスアカウントで権限制御
 - ✅ 環境変数に直接シークレットを設定しない

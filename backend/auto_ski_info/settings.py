@@ -212,7 +212,7 @@ USE_AUTHENTICATED_SCRAPER = config('USE_AUTHENTICATED_SCRAPER', default=False, c
 
 # Gemini AI settings
 # ローカルでは環境変数、Cloud Run では Secret Manager から取得
-GEMINI_API_KEY = config('AI_API_KEY_GOOGLE', default=config('GEMINI_API_KEY', default=''))
+GEMINI_API_KEY = config('AI_API_KEY_GOOGLE', default='')
 
 # Logging
 LOGGING = {
