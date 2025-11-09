@@ -11,16 +11,29 @@ steps:
       - "-c"
       - |
         cd frontend
-        npm install
+        npm ci --prefer-offline --no-audit
         npm run build
-        # Copy build to backend directory for inclusion in Docker image
-        cp -r build ../backend/frontend_build
+        # Copy build to a temporary location in workspace
+        mkdir -p /workspace/frontend_build
+        cp -r build/* /workspace/frontend_build/
+        ls -la /workspace/frontend_build/
+
+  # 2. Copy frontend build to backend directory
+  - name: "busybox"
+    id: "Copy Frontend to Backend"
+    entrypoint: "sh"
+    args:
+      - "-c"
+      - |
+        mkdir -p backend/frontend_build
+        cp -r /workspace/frontend_build/* backend/frontend_build/
+        ls -la backend/frontend_build/
 
   # -----------------------------------------------------------------------------
   # Docker Image Builds
   # -----------------------------------------------------------------------------
 
-  # 2. Build Backend Docker image (includes frontend)
+  # 3. Build Backend Docker image (includes frontend)
   - name: "gcr.io/cloud-builders/docker"
     id: "Build Backend"
     args:
@@ -37,12 +50,12 @@ steps:
   # Push Docker Images to GCR
   # -----------------------------------------------------------------------------
 
-  # 3. Push Backend image
+  # 4. Push Backend image
   - name: "gcr.io/cloud-builders/docker"
     id: "Push Backend"
     args: ["push", "gcr.io/$PROJECT_ID/auto-ski-info-backend:$BUILD_ID"]
 
-  # 4. Push 'latest' tag for Backend
+  # 5. Push 'latest' tag for Backend
   - name: "gcr.io/cloud-builders/docker"
     id: "Push Backend Latest"
     args: ["push", "gcr.io/$PROJECT_ID/auto-ski-info-backend:latest"]
@@ -51,7 +64,7 @@ steps:
   # Cloud Run Deployments
   # -----------------------------------------------------------------------------
 
-  # 5. Deploy Backend to Cloud Run (includes frontend, migrations will run automatically via entrypoint.sh)
+  # 6. Deploy Backend to Cloud Run (includes frontend, migrations will run automatically via entrypoint.sh)
   - name: "gcr.io/cloud-builders/gcloud"
     id: "Deploy Backend"
     args:
@@ -88,7 +101,7 @@ steps:
   # Cloud Scheduler Setup
   # -----------------------------------------------------------------------------
 
-  # 6. Create/Update Cloud Scheduler job for monitoring
+  # 7. Create/Update Cloud Scheduler job for monitoring
   - name: "gcr.io/cloud-builders/gcloud"
     id: "Setup Scheduler"
     entrypoint: "bash"
@@ -111,7 +124,7 @@ steps:
           --time-zone="Asia/Tokyo" \
           --description="Triggers the X account monitoring task every 15 minutes."
 
-  # 7. Grant Invoker role to Scheduler Service Account
+  # 8. Grant Invoker role to Scheduler Service Account
   - name: "gcr.io/cloud-builders/gcloud"
     id: "Grant Invoker Role"
     args:

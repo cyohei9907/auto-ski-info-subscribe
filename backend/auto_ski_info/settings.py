@@ -126,15 +126,15 @@ STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # WhiteNoise configuration for serving static files
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # Frontend build directory
 FRONTEND_BUILD_DIR = os.path.join(BASE_DIR, 'frontend_build')
 
-# Additional directories for static files
-STATICFILES_DIRS = [
-    FRONTEND_BUILD_DIR,
-] if os.path.exists(FRONTEND_BUILD_DIR) else []
+# Additional directories for static files (will be collected to STATIC_ROOT)
+STATICFILES_DIRS = []
+if os.path.exists(FRONTEND_BUILD_DIR):
+    STATICFILES_DIRS.append(FRONTEND_BUILD_DIR)
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

@@ -32,8 +32,8 @@ urlpatterns = [
     path('swagger.json', schema_view.without_ui(cache_timeout=0), name='schema-json'),
 ]
 
-# Serve React frontend for all non-API routes (SPA routing)
-if settings.DEBUG or settings.FRONTEND_BUILD_DIR:
-    urlpatterns += [
-        re_path(r'^(?!api/).*$', TemplateView.as_view(template_name='index.html'), name='frontend'),
-    ]
+# Serve React frontend for all non-API/admin/swagger routes (SPA routing)
+# This must be at the end to act as a catch-all
+urlpatterns += [
+    re_path(r'^(?!api/|admin|swagger|redoc|static/).*$', TemplateView.as_view(template_name='index.html'), name='frontend'),
+]
