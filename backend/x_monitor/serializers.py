@@ -1,19 +1,27 @@
 from rest_framework import serializers
-from .models import XAccount, Tweet, MonitoringLog, AIAnalysis, UserNotification, RecommendedTweet
+from .models import (
+    XAccount, Tweet, MonitoringLog, AIAnalysis, 
+    UserNotification, RecommendedTweet, AIPromptRule
+)
 
 
 class XAccountSerializer(serializers.ModelSerializer):
     tweets_count = serializers.SerializerMethodField()
+    monitoring_interval_display = serializers.SerializerMethodField()
     
     class Meta:
         model = XAccount
         fields = ['id', 'username', 'display_name', 'avatar_url', 'is_active', 
+                 'monitoring_interval', 'monitoring_interval_display',
                  'ai_filter_enabled', 'fetch_from_date', 'fetch_to_date',
                  'created_at', 'last_checked', 'tweets_count']
-        read_only_fields = ['created_at', 'last_checked']
+        read_only_fields = ['created_at', 'last_checked', 'username', 'display_name', 'avatar_url']
     
     def get_tweets_count(self, obj):
         return obj.tweets.count()
+    
+    def get_monitoring_interval_display(self, obj):
+        return obj.get_monitoring_interval_display()
 
 
 class XAccountCreateSerializer(serializers.ModelSerializer):
@@ -86,9 +94,50 @@ class UserNotificationSerializer(serializers.ModelSerializer):
                  'created_at', 'tweet_content']
 
 
+class AIPromptRuleSerializer(serializers.ModelSerializer):
+    recommended_count = serializers.SerializerMethodField()
+    target_accounts = serializers.PrimaryKeyRelatedField(
+        many=True, 
+        queryset=XAccount.objects.none(),
+        required=False,
+        allow_empty=True
+    )
+    target_account_details = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = AIPromptRule
+        fields = ['id', 'name', 'prompt', 'target_accounts', 'target_account_details',
+                 'is_active', 'created_at', 'updated_at', 'last_applied', 'recommended_count']
+        read_only_fields = ['created_at', 'updated_at', 'last_applied']
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            self.fields['target_accounts'].queryset = XAccount.objects.filter(user=request.user)
+    
+    def get_recommended_count(self, obj):
+        """获取该规则推荐的推文数量"""
+        return obj.recommended_tweets.count()
+    
+    def get_target_account_details(self, obj):
+        """获取关联账号的详细信息"""
+        return [
+            {
+                'id': account.id,
+                'username': account.username,
+                'display_name': account.display_name,
+                'avatar_url': account.avatar_url
+            }
+            for account in obj.target_accounts.all()
+        ]
+
+
 class RecommendedTweetSerializer(serializers.ModelSerializer):
     tweet = TweetSerializer(read_only=True)
+    prompt_rule_name = serializers.CharField(source='prompt_rule.name', read_only=True, allow_null=True)
     
     class Meta:
         model = RecommendedTweet
-        fields = ['id', 'tweet', 'ai_reason', 'relevance_score', 'is_read', 'created_at']
+        fields = ['id', 'tweet', 'prompt_rule_name', 'ai_reason', 
+                 'relevance_score', 'is_read', 'created_at']

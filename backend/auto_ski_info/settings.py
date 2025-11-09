@@ -187,9 +187,9 @@ CELERY_TIMEZONE = TIME_ZONE
 
 # Celery Beat スケジュール設定
 CELERY_BEAT_SCHEDULE = {
-    'monitor-all-accounts-hourly': {
+    'monitor-all-accounts-every-30-minutes': {
         'task': 'x_monitor.tasks.monitor_all_active_accounts',
-        'schedule': 3600.0,  # 1時間ごと
+        'schedule': 1800.0,  # 30分ごと（最短间隔检查，实际监控由各账户的monitoring_interval控制）
     },
     'monitor-today-tweets-morning': {
         'task': 'x_monitor.tasks.monitor_today_tweets',
@@ -204,6 +204,11 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour=18, minute=0),  # 毎日18:00
     },
 }
+
+# X.com Scraper Settings
+# USE_AUTHENTICATED_SCRAPER=True: 使用登录凭证访问（需要先运行setup_authentication保存cookies）
+# USE_AUTHENTICATED_SCRAPER=False: 游客模式访问（仅能看到4-6条置顶推文）
+USE_AUTHENTICATED_SCRAPER = config('USE_AUTHENTICATED_SCRAPER', default=False, cast=bool)
 
 # Gemini AI settings
 # ローカルでは環境変数、Cloud Run では Secret Manager から取得

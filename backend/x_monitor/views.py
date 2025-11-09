@@ -6,16 +6,17 @@ from django.shortcuts import get_object_or_404
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from .models import XAccount, Tweet, MonitoringLog, UserNotification
+from .models import XAccount, Tweet, MonitoringLog, UserNotification, AIPromptRule, RecommendedTweet
 
 logger = logging.getLogger(__name__)
 from .serializers import (
     XAccountSerializer, XAccountCreateSerializer, TweetSerializer,
-    MonitoringLogSerializer, UserNotificationSerializer
+    MonitoringLogSerializer, UserNotificationSerializer,
+    AIPromptRuleSerializer, RecommendedTweetSerializer
 )
 from .services import XMonitorService
 from .tasks import monitor_single_account
-from ai_service.services import analyze_tweet_with_ai
+from ai_service.services import analyze_tweet_with_ai, AIRecommendationService
 
 
 @swagger_auto_schema(
@@ -360,14 +361,28 @@ def monitor_account_now(request, account_id):
     """アカウントを今すぐ監視"""
     x_account = get_object_or_404(XAccount, id=account_id, user=request.user)
     
-    # Celeryタスクを実行
-    task = monitor_single_account.delay(account_id)
-    
-    return Response({
-        'success': True,
-        'message': '監視タスクを開始しました',
-        'task_id': task.id
-    })
+    # 開発環境では同期実行、本番環境ではCeleryタスクを実行
+    try:
+        # まず Celery 経由で実行を試みる
+        task = monitor_single_account.delay(account_id)
+        return Response({
+            'success': True,
+            'message': '監視タスクを開始しました',
+            'task_id': task.id
+        })
+    except Exception as e:
+        # Celery 接続失敗時は直接実行（開発環境用フォールバック）
+        logger.warning(f"Celery 接続失敗、直接実行します: {e}")
+        from .services import XMonitorService
+        
+        service = XMonitorService()
+        result = service.monitor_account(x_account, today_only=False, max_tweets=20, hours=6)
+        
+        return Response({
+            'success': True,
+            'message': '監視を実行しました（直接実行）',
+            'new_tweets': result.get('new_tweets', 0)
+        })
 
 
 class TweetListView(generics.ListAPIView):
@@ -610,7 +625,7 @@ def mark_notification_read(request, notification_id):
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def fetch_latest_tweets(request, account_id):
-    """アカウントの最新10条推文を即座に取得"""
+    """アカウントの当日推文を即座に取得（24時間以内）"""
     # ユーザーが所有するアカウントかチェック
     x_account = get_object_or_404(
         XAccount,
@@ -618,9 +633,10 @@ def fetch_latest_tweets(request, account_id):
         user=request.user
     )
     
-    # 監視サービスを使って最新推文を取得
+    # 監視サービスを使って当日推文を取得
+    # 注: today_only=True を使用して24時間以内の全ての推文を取得
     monitor_service = XMonitorService()
-    result = monitor_service.monitor_account(x_account, max_tweets=10)
+    result = monitor_service.monitor_account(x_account, today_only=True, max_tweets=50)
     
     if result.get('success'):
         return Response({
@@ -912,4 +928,118 @@ def debug_scrape_url(request):
         return Response({
             'success': False,
             'message': f'抓取失败: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ==================== AI推荐规则管理 ====================
+
+class AIPromptRuleListCreateView(generics.ListCreateAPIView):
+    """AI推荐规则列表和创建"""
+    serializer_class = AIPromptRuleSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        return AIPromptRule.objects.filter(user=self.request.user)
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class AIPromptRuleDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """AI推荐规则详情、更新和删除"""
+    serializer_class = AIPromptRuleSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        return AIPromptRule.objects.filter(user=self.request.user)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def apply_ai_rule(request, rule_id):
+    """
+    应用AI规则筛选推文
+    
+    POST /api/v1/ai/rules/{rule_id}/apply/
+    {
+        "date_filter": "today"  // today, week, all
+    }
+    """
+    try:
+        rule = get_object_or_404(AIPromptRule, id=rule_id, user=request.user)
+        date_filter = request.data.get('date_filter', 'today')
+        
+        if date_filter not in ['today', 'week', 'all']:
+            return Response({
+                'error': 'Invalid date_filter. Must be one of: today, week, all'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 应用规则
+        ai_service = AIRecommendationService()
+        count = ai_service.apply_rule_to_user_tweets(
+            user=request.user,
+            prompt_rule=rule,
+            date_filter=date_filter
+        )
+        
+        return Response({
+            'success': True,
+            'rule_name': rule.name,
+            'recommended_count': count,
+            'message': f'成功应用规则，筛选出 {count} 条推文'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error applying AI rule: {e}")
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RecommendedTweetListView(generics.ListAPIView):
+    """AI推荐推文列表"""
+    serializer_class = RecommendedTweetSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        queryset = RecommendedTweet.objects.filter(user=self.request.user)
+        
+        # 过滤参数
+        rule_id = self.request.query_params.get('rule_id')
+        is_read = self.request.query_params.get('is_read')
+        
+        if rule_id:
+            queryset = queryset.filter(prompt_rule_id=rule_id)
+        
+        if is_read is not None:
+            queryset = queryset.filter(is_read=is_read.lower() == 'true')
+        
+        return queryset
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def mark_recommended_tweet_read(request, tweet_id):
+    """
+    标记推荐推文为已读
+    
+    POST /api/v1/ai/recommended/{tweet_id}/read/
+    """
+    try:
+        recommended = get_object_or_404(
+            RecommendedTweet, 
+            id=tweet_id, 
+            user=request.user
+        )
+        recommended.is_read = True
+        recommended.save()
+        
+        return Response({
+            'success': True,
+            'message': '已标记为已读'
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

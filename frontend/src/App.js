@@ -8,6 +8,10 @@ import DashboardPage from "./pages/DashboardPage";
 import AccountsPage from "./pages/AccountsPage";
 import TweetsPage from "./pages/TweetsPage";
 import LogsPage from "./pages/LogsPage";
+import SettingsPage from "./pages/SettingsPage";
+import AIRulesPage from "./pages/AIRulesPage";
+import RecommendedTweetsPage from "./pages/RecommendedTweetsPage";
+import MonitoringSchedulePage from "./pages/MonitoringSchedulePage";
 import MainLayout from "./components/MainLayout";
 
 const { Content } = Layout;
@@ -54,7 +58,11 @@ function App() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/accounts" element={<AccountsPage />} />
         <Route path="/tweets" element={<TweetsPage />} />
+        <Route path="/ai-rules" element={<AIRulesPage />} />
+        <Route path="/recommended" element={<RecommendedTweetsPage />} />
+        <Route path="/schedule" element={<MonitoringSchedulePage />} />
         <Route path="/logs" element={<LogsPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

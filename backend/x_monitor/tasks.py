@@ -9,19 +9,41 @@ logger = logging.getLogger(__name__)
 
 @shared_task
 def monitor_all_active_accounts():
-    """すべてのアクティブなアカウントを監視するタスク"""
+    """すべてのアクティブなアカウントを監視するタスク（根据监控间隔智能调度）"""
+    from datetime import timedelta
+    
+    now = timezone.now()
     active_accounts = XAccount.objects.filter(is_active=True)
     monitor_service = XMonitorService()
     
     results = []
     for account in active_accounts:
         try:
-            result = monitor_service.monitor_account(account)
-            results.append({
-                'account': account.username,
-                'result': result
-            })
-            logger.info(f"Monitored @{account.username}: {result}")
+            # 检查是否到了该监控的时间
+            should_monitor = False
+            
+            if account.last_checked is None:
+                # 从未监控过，立即监控
+                should_monitor = True
+            else:
+                # 计算距离上次检查的时间（分钟）
+                time_since_last_check = (now - account.last_checked).total_seconds() / 60
+                
+                # 如果超过了监控间隔，则监控
+                if time_since_last_check >= account.monitoring_interval:
+                    should_monitor = True
+            
+            if should_monitor:
+                result = monitor_service.monitor_account(account)
+                results.append({
+                    'account': account.username,
+                    'interval': account.get_monitoring_interval_display(),
+                    'result': result
+                })
+                logger.info(f"Monitored @{account.username} (间隔: {account.get_monitoring_interval_display()}): {result}")
+            else:
+                logger.debug(f"Skipped @{account.username} (not time yet)")
+                
         except Exception as e:
             logger.error(f"Failed to monitor @{account.username}: {e}")
             results.append({

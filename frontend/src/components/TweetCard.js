@@ -1,11 +1,25 @@
 import React from "react";
-import { Card, Avatar, Typography, Space, Tag, Image, Row, Col } from "antd";
+import {
+  Card,
+  Avatar,
+  Typography,
+  Space,
+  Tag,
+  Image,
+  Row,
+  Col,
+  Button,
+  Popconfirm,
+  message,
+} from "antd";
 import {
   HeartOutlined,
   RetweetOutlined,
   MessageOutlined,
   LinkOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
+import { monitorAPI } from "../services/api";
 import "./TweetCard.css";
 
 const { Text, Paragraph } = Typography;
@@ -20,8 +34,9 @@ const XIcon = ({ style }) => (
   </svg>
 );
 
-const TweetCard = ({ tweet, onLike }) => {
+const TweetCard = ({ tweet, onLike, onDelete }) => {
   const {
+    id,
     tweet_id,
     content,
     x_account_username,
@@ -36,6 +51,20 @@ const TweetCard = ({ tweet, onLike }) => {
     ai_summary,
     tweet_url,
   } = tweet;
+
+  const handleDelete = async () => {
+    try {
+      await monitorAPI.deleteTweet(id);
+      message.success("推文已删除");
+      if (onDelete) {
+        onDelete(id);
+      }
+    } catch (error) {
+      message.error(
+        "删除失败: " + (error.response?.data?.message || error.message)
+      );
+    }
+  };
 
   // 格式化时间显示
   const formatTime = (dateString) => {
@@ -170,20 +199,48 @@ const TweetCard = ({ tweet, onLike }) => {
       {media_urls && media_urls.length > 0 && (
         <div style={{ marginBottom: "12px" }}>
           <Row gutter={[8, 8]}>
-            {media_urls.slice(0, 4).map((url, index) => (
-              <Col span={media_urls.length === 1 ? 24 : 12} key={index}>
-                <Image
-                  src={url}
-                  alt={`Media ${index + 1}`}
-                  style={{
-                    borderRadius: "16px",
-                    width: "100%",
-                    objectFit: "cover",
-                    maxHeight: media_urls.length === 1 ? "400px" : "200px",
-                  }}
-                />
-              </Col>
-            ))}
+            {media_urls.slice(0, 4).map((url, index) => {
+              // 根据图片数量决定布局
+              let colSpan = 24;
+              let maxHeight = "400px";
+
+              if (media_urls.length === 1) {
+                // 1张图：全宽
+                colSpan = 24;
+                maxHeight = "400px";
+              } else if (media_urls.length === 2) {
+                // 2张图：各占一半
+                colSpan = 12;
+                maxHeight = "300px";
+              } else if (media_urls.length === 3) {
+                // 3张图：第一张全宽，后两张各占一半
+                colSpan = index === 0 ? 24 : 12;
+                maxHeight = index === 0 ? "300px" : "200px";
+              } else {
+                // 4张图：2x2网格
+                colSpan = 12;
+                maxHeight = "200px";
+              }
+
+              return (
+                <Col span={colSpan} key={index}>
+                  <Image
+                    src={url}
+                    alt={`Media ${index + 1}`}
+                    style={{
+                      borderRadius: "12px",
+                      width: "100%",
+                      height: maxHeight,
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                    preview={{
+                      mask: "查看大图",
+                    }}
+                  />
+                </Col>
+              );
+            })}
           </Row>
         </div>
       )}
@@ -235,6 +292,20 @@ const TweetCard = ({ tweet, onLike }) => {
             <LinkOutlined style={{ fontSize: "18px", color: "#536471" }} />
           </Space>
         </Space>
+
+        {/* 删除按钮 */}
+        <Popconfirm
+          title="确认删除"
+          description="确定要删除这条推文吗？"
+          onConfirm={handleDelete}
+          okText="删除"
+          cancelText="取消"
+          okButtonProps={{ danger: true }}
+        >
+          <Button type="text" danger icon={<DeleteOutlined />} size="small">
+            删除
+          </Button>
+        </Popconfirm>
       </div>
     </Card>
   );

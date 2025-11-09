@@ -9,6 +9,8 @@ import {
   LogoutOutlined,
   SettingOutlined,
   MenuOutlined,
+  RobotOutlined,
+  StarOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -51,9 +53,29 @@ const MainLayout = ({ children }) => {
       label: "ツイート一覧",
     },
     {
+      key: "/ai-rules",
+      icon: <RobotOutlined />,
+      label: "AI推荐规则",
+    },
+    {
+      key: "/recommended",
+      icon: <StarOutlined />,
+      label: "AI推荐推文",
+    },
+    {
+      key: "/schedule",
+      icon: <SettingOutlined />,
+      label: "智能调度",
+    },
+    {
       key: "/logs",
       icon: <SettingOutlined />,
       label: "監視ログ",
+    },
+    {
+      key: "/settings",
+      icon: <SettingOutlined />,
+      label: "爬虫设置",
     },
   ];
 

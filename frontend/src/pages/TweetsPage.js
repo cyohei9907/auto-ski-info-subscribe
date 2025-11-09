@@ -14,11 +14,13 @@ import {
   message,
   Empty,
   Spin,
+  Popconfirm,
 } from "antd";
 import {
   SyncOutlined,
   FilterOutlined,
   CalendarOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
 import { monitorAPI } from "../services/api";
 import TweetCard from "../components/TweetCard";
@@ -159,11 +161,14 @@ const TweetsPage = () => {
 
     setRefreshing(true);
     try {
-      await monitorAPI.monitorAccount(selectedAccount);
+      await monitorAPI.fetchLatestTweets(selectedAccount); // 修正：使用正确的API方法
       message.success("刷新成功,正在获取最新推文...");
       setTimeout(() => loadTweets(), 2000);
     } catch (error) {
-      message.error("刷新失败");
+      console.error("Refresh error:", error);
+      message.error(
+        "刷新失败: " + (error.response?.data?.error || error.message)
+      );
     } finally {
       setRefreshing(false);
     }
@@ -227,6 +232,28 @@ const TweetsPage = () => {
       message.success("日期范围已更新");
     } catch (error) {
       message.error("更新日期范围失败");
+    }
+  };
+
+  const handleDeleteTweet = (tweetId) => {
+    // 从列表中移除已删除的推文
+    setTweets(tweets.filter((t) => t.id !== tweetId));
+    // 重新加载统计信息
+    loadTweets();
+  };
+
+  const handleDeleteAllTweets = async () => {
+    if (!selectedAccount) return;
+
+    try {
+      const response = await monitorAPI.deleteAccountTweets(selectedAccount);
+      message.success(`已删除 ${response.data.deleted_count} 条推文`);
+      setTweets([]);
+      loadTweets();
+    } catch (error) {
+      message.error(
+        "批量删除失败: " + (error.response?.data?.message || error.message)
+      );
     }
   };
 
@@ -334,6 +361,22 @@ const TweetsPage = () => {
             >
               刷新推文
             </Button>
+
+            {/* 批量删除按钮 */}
+            {selectedAccount && tweets.length > 0 && (
+              <Popconfirm
+                title="批量删除推文"
+                description={`确定要删除 @${selectedAccountData?.username} 的所有 ${tweets.length} 条推文吗？此操作不可恢复！`}
+                onConfirm={handleDeleteAllTweets}
+                okText="确认删除"
+                cancelText="取消"
+                okButtonProps={{ danger: true }}
+              >
+                <Button danger icon={<DeleteOutlined />}>
+                  删除所有推文
+                </Button>
+              </Popconfirm>
+            )}
           </Space>
         </Space>
       </Card>
@@ -367,7 +410,13 @@ const TweetsPage = () => {
         ) : (
           <List
             dataSource={tweets}
-            renderItem={(tweet) => <TweetCard key={tweet.id} tweet={tweet} />}
+            renderItem={(tweet) => (
+              <TweetCard
+                key={tweet.id}
+                tweet={tweet}
+                onDelete={handleDeleteTweet}
+              />
+            )}
             pagination={{
               pageSize: 10,
               showSizeChanger: true,

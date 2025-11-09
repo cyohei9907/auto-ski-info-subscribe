@@ -13,6 +13,28 @@ from .models import XAccount, Tweet, MonitoringLog
 
 logger = logging.getLogger(__name__)
 
+# 临时使用workaround scraper（因为authenticated_scraper被X.com检测）
+USE_WORKAROUND = True  # 临时启用workaround
+if USE_WORKAROUND:
+    logger.info("🔧 Using workaround scraper (temporary fix for X.com anti-automation)")
+    from .workaround_scraper import scrape_with_working_method
+    SCRAPER_AVAILABLE = True
+else:
+    # 根据配置选择爬虫实现
+    USE_AUTHENTICATED = getattr(settings, 'USE_AUTHENTICATED_SCRAPER', False)
+    if USE_AUTHENTICATED:
+        logger.info("Using authenticated X.com scraper (requires cookies, can access full timeline)")
+        try:
+            from .authenticated_scraper import AuthenticatedXScraperClient
+            SCRAPER_AVAILABLE = True
+        except ImportError as e:
+            logger.warning(f"Failed to import authenticated scraper: {e}, falling back to guest scraper")
+            SCRAPER_AVAILABLE = False
+    else:
+        logger.info("Using guest X.com scraper (limited to visible tweets)")
+        SCRAPER_AVAILABLE = False
+
+
 
 class XScraperClient:
     """X (Twitter) Webスクレイピングクライアント"""
@@ -154,11 +176,41 @@ class XScraperClient:
             logger.error(f"Error scraping user {username}: {e}")
             return None
     
-    def get_recent_tweets(self, username: str, max_results: int = 10) -> List[Dict]:
-        """最新のツイートをスクレイピング"""
+    def get_recent_tweets(self, username: str, max_results: int = 10, hours: int = 6) -> List[Dict]:
+        """最新のツイートをスクレイピング（指定時間以内のツイートのみ）
+        
+        Args:
+            username: X.com用户名
+            max_results: 最大取得ツイート数
+            hours: 時間範囲（デフォルト: 6時間）
+        """
         try:
+            # 如果启用了workaround，使用它
+            if USE_WORKAROUND:
+                logger.info(f"使用workaround scraper获取 @{username} 的推文")
+                tweets = scrape_with_working_method(username, max_tweets=max_results)
+                
+                # 过滤指定时间内的推文
+                time_ago = django_timezone.now() - django_timezone.timedelta(hours=hours)
+                recent_tweets = []
+                for tweet in tweets:
+                    try:
+                        tweet_time = django_timezone.datetime.fromisoformat(tweet['published_at'].replace('Z', '+00:00'))
+                        if tweet_time >= time_ago:
+                            recent_tweets.append(tweet)
+                    except:
+                        pass
+                
+                logger.info(f"Workaround scraper找到 {len(tweets)} 条推文，其中 {len(recent_tweets)} 条在{hours}小时内")
+                return recent_tweets
+            
+            # 原有逻辑...
             # 添加随机延迟
             self._add_random_delay()
+            
+            # 计算6小时前的时间
+            six_hours_ago = django_timezone.now() - django_timezone.timedelta(hours=6)
+            logger.info(f"Fetching tweets since: {six_hours_ago}")
             
             with sync_playwright() as p:
                 browser = p.chromium.launch(
@@ -166,7 +218,9 @@ class XScraperClient:
                     args=[
                         '--disable-blink-features=AutomationControlled',
                         '--disable-dev-shm-usage',
-                        '--no-sandbox'
+                        '--no-sandbox',
+                        '--disable-gpu',
+                        '--disable-software-rasterizer'
                     ]
                 )
                 context = browser.new_context(
@@ -174,9 +228,19 @@ class XScraperClient:
                     user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                     extra_http_headers={
                         'Accept-Language': 'en-US,en;q=0.9,ja;q=0.8',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                     }
                 )
+                
+                # 禁用字体、样式表等非必要资源以加快加载速度（保留图片和视频）
+                def block_resources(route):
+                    resource_type = route.request.resource_type
+                    if resource_type in ['font', 'stylesheet']:
+                        route.abort()
+                    else:
+                        route.continue_()
+                
+                context.route("**/*", block_resources)
                 page = context.new_page()
                 
                 # ユーザーのタイムラインにアクセス
@@ -197,12 +261,11 @@ class XScraperClient:
                     browser.close()
                     return []
                 
-                # ページをスクロールしてツイートを読み込む (添加随机延迟)
-                for _ in range(3):
-                    page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
-                    # 随机等待 1-3 秒
-                    wait_time = random.uniform(1000, 3000)
-                    page.wait_for_timeout(int(wait_time))
+                # 最小化滚动：只滚动一次，快速获取最新推文
+                page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+                # 短暂等待内容加载
+                wait_time = random.uniform(1000, 2000)
+                page.wait_for_timeout(int(wait_time))
                 
                 # HTMLを取得
                 html = page.content()
@@ -212,6 +275,10 @@ class XScraperClient:
                 tweets = []
                 tweet_articles = soup.find_all('article', {'data-testid': 'tweet'})
                 logger.info(f"Found {len(tweet_articles)} tweet articles on page")
+                
+                # 统计：发现了多少6小时内的推文
+                recent_count = 0
+                old_count = 0
                 
                 if len(tweet_articles) == 0:
                     # 保存HTML用于调试
@@ -243,6 +310,14 @@ class XScraperClient:
                             # 相対時間から推定
                             time_text = time_elem.get_text() if time_elem else ""
                             posted_at = self._parse_tweet_time(time_text)
+                        
+                        # 6時間以内のツイートのみ処理
+                        if posted_at and posted_at < six_hours_ago:
+                            old_count += 1
+                            logger.info(f"Tweet {tweet_id} is older than 6 hours ({posted_at}), skipping")
+                            continue
+                        
+                        recent_count += 1
                         
                         # ハッシュタグとメンション
                         hashtags = [tag.get_text()[1:] for tag in article.find_all('a', href=re.compile(r'/hashtag/'))]
@@ -293,7 +368,7 @@ class XScraperClient:
                         continue
                 
                 browser.close()
-                logger.info(f"Successfully scraped {len(tweets)} tweets for @{username}")
+                logger.info(f"Successfully scraped {len(tweets)} tweets for @{username} (recent: {recent_count}, old: {old_count})")
                 return tweets
                 
         except Exception as e:
@@ -301,9 +376,28 @@ class XScraperClient:
             return []
     
     def get_today_tweets(self, username: str) -> List[Dict]:
-        """当日のツイートのみを取得"""
+        """当日のツイートのみを取得（24小時以内）"""
         try:
-            # すべての最近のツイートを取得
+            # 如果启用了workaround，使用它获取更多推文
+            if USE_WORKAROUND:
+                logger.info(f"使用workaround scraper获取 @{username} 当日推文")
+                tweets = scrape_with_working_method(username, max_tweets=50)  # 获取更多推文
+                
+                # 过滤24小时内的推文
+                twenty_four_hours_ago = django_timezone.now() - django_timezone.timedelta(hours=24)
+                today_tweets = []
+                for tweet in tweets:
+                    try:
+                        tweet_time = django_timezone.datetime.fromisoformat(tweet['published_at'].replace('Z', '+00:00'))
+                        if tweet_time >= twenty_four_hours_ago:
+                            today_tweets.append(tweet)
+                    except:
+                        pass
+                
+                logger.info(f"Workaround scraper找到 {len(tweets)} 条推文，其中 {len(today_tweets)} 条在24小时内")
+                return today_tweets
+            
+            # 原有逻辑（作为后备）
             all_tweets = self.get_recent_tweets(username, max_results=50)
             
             # 今日の日付を取得
@@ -327,14 +421,25 @@ class XMonitorService:
     """X監視サービス"""
     
     def __init__(self):
-        self.scraper_client = XScraperClient()
+        # 根据配置选择爬虫实现
+        if USE_WORKAROUND:
+            self.scraper_client = XScraperClient()  # 使用基础client，但get_recent_tweets会调用workaround
+            logger.info("XMonitorService initialized with workaround scraper")
+        elif 'USE_AUTHENTICATED' in globals() and USE_AUTHENTICATED and SCRAPER_AVAILABLE:
+            self.scraper_client = AuthenticatedXScraperClient()
+            logger.info("XMonitorService initialized with authenticated scraper")
+        else:
+            self.scraper_client = XScraperClient()
+            logger.info("XMonitorService initialized with guest scraper")
     
-    def monitor_account(self, x_account: XAccount, today_only: bool = False) -> dict:
+    def monitor_account(self, x_account: XAccount, today_only: bool = False, max_tweets: int = 20, hours: int = 6) -> dict:
         """アカウントを監視して新しいツイートを取得
         
         Args:
             x_account: 監視するXアカウント
             today_only: Trueの場合、当日のツイートのみを取得
+            max_tweets: 取得する最大ツイート数（デフォルト: 20）
+            hours: 時間範囲（デフォルト: 6時間、today_onlyがFalseの場合のみ有効）
         """
         start_time = django_timezone.now()
         
@@ -347,10 +452,14 @@ class XMonitorService:
             else:
                 tweets_data = self.scraper_client.get_recent_tweets(
                     username=x_account.username,
-                    max_results=20
+                    max_results=max_tweets,
+                    hours=hours
                 )
             
             new_tweets_count = 0
+            
+            # 不再从推文中更新账户头像
+            # 头像应该只在首次添加账户时从用户资料页获取，之后不再变更
             
             # 新しいツイートをデータベースに保存
             for tweet_data in tweets_data:

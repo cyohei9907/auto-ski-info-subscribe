@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Redis for Celery (ローカル開発用)
+  # Redis for Celery (ローカル開発用 - Windows環境からアクセス可能)
   redis:
     image: redis:7-alpine
     ports:
@@ -9,86 +9,43 @@ services:
     volumes:
       - redis_data:/data
 
-  # Django Backend (SQLite使用)
-  backend:
-    build:
-      context: ./backend
-    ports:
-      - "8000:8000"
-    depends_on:
-      - redis
-    # Override the image ENTRYPOINT to avoid missing /entrypoint.sh
-    command: >
-      sh -c "mkdir -p /app/data &&
-             python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
-             gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 300 auto_ski_info.wsgi:application"
-    environment:
-      # ローカル開発設定
-      USE_CLOUD_SQL: "False"
-      DEBUG: "True"
-      SECRET_KEY: "django-insecure-local-dev-key"
-      ALLOWED_HOSTS: "localhost,127.0.0.1,backend"
-      REDIS_URL: "redis://redis:6379/0"
-      # API Keys - システム環境変数から取得
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-    volumes:
-      - ./backend:/app
-      - sqlite_data:/app/data  # SQLite データベース用
-
-  # Celery Worker (バックグラウンドタスク処理)
+  # Celery Worker (バックグラウンドタスク処理) - Windowsローカルバックエンドと連携
   celery:
     build:
       context: ./backend
-    # Override the image ENTRYPOINT to ensure migrations run and avoid missing /entrypoint.sh
     command: >
       sh -c "python manage.py migrate &&
              celery -A auto_ski_info worker -l info"
     depends_on:
       - redis
-      - backend
     environment:
       USE_CLOUD_SQL: "False"
       DEBUG: "True"
       REDIS_URL: "redis://redis:6379/0"
+      USE_AUTHENTICATED_SCRAPER: "True"
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     volumes:
       - ./backend:/app
       - sqlite_data:/app/data
 
-  # Celery Beat (定期タスクスケジューラー)
+  # Celery Beat (定期タスクスケジューラー) - Windowsローカルバックエンドと連携
   celery-beat:
     build:
       context: ./backend
-    # Override the image ENTRYPOINT to ensure migrations run and avoid missing /entrypoint.sh
     command: >
       sh -c "python manage.py migrate &&
              celery -A auto_ski_info beat -l info"
     depends_on:
       - redis
-      - backend
     environment:
       USE_CLOUD_SQL: "False"
       DEBUG: "True"
       REDIS_URL: "redis://redis:6379/0"
+      USE_AUTHENTICATED_SCRAPER: "True"
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     volumes:
       - ./backend:/app
       - sqlite_data:/app/data
-
-  # React Frontend
-  frontend:
-    build:
-      context: ./frontend
-    ports:
-      - "3000:80"
-    depends_on:
-      - backend
-    environment:
-      REACT_APP_API_URL: "http://localhost:8000/api"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
 
 volumes:
   redis_data:

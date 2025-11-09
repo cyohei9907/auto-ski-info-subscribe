@@ -1,41 +1,83 @@
-import React from 'react';
-import { Row, Col, Card, Statistic, Typography, Spin, Alert } from 'antd';
-import { TwitterOutlined, FileTextOutlined, EyeOutlined, BellOutlined } from '@ant-design/icons';
-import { useQuery } from 'react-query';
-import { monitorAPI } from '../services/api';
+import React from "react";
+import { Row, Col, Card, Statistic, Typography, Spin, Alert } from "antd";
+import {
+  TwitterOutlined,
+  FileTextOutlined,
+  EyeOutlined,
+  BellOutlined,
+} from "@ant-design/icons";
+import { useQuery } from "react-query";
+import { monitorAPI } from "../services/api";
 
 const { Title } = Typography;
 
 const DashboardPage = () => {
-  const { data: accounts, isLoading: accountsLoading, error: accountsError } = useQuery(
-    'accounts',
-    monitorAPI.getAccounts,
-    { retry: 1 }
-  );
+  const {
+    data: accounts,
+    isLoading: accountsLoading,
+    error: accountsError,
+  } = useQuery("accounts", monitorAPI.getAccounts, { retry: 1 });
 
-  const { data: tweets, isLoading: tweetsLoading, error: tweetsError } = useQuery(
-    'tweets',
-    () => monitorAPI.getTweets({ limit: 10 }),
-    { retry: 1 }
-  );
+  const {
+    data: tweets,
+    isLoading: tweetsLoading,
+    error: tweetsError,
+  } = useQuery("tweets", () => monitorAPI.getTweets({ limit: 10 }), {
+    retry: 1,
+  });
 
-  const { data: notifications, isLoading: notificationsLoading, error: notificationsError } = useQuery(
-    'notifications',
-    monitorAPI.getNotifications,
-    { retry: 1 }
-  );
+  const {
+    data: notifications,
+    isLoading: notificationsLoading,
+    error: notificationsError,
+  } = useQuery("notifications", monitorAPI.getNotifications, { retry: 1 });
 
   const accountsData = Array.isArray(accounts?.data) ? accounts.data : [];
-  const tweetsData = Array.isArray(tweets?.data?.results) ? tweets.data.results : (Array.isArray(tweets?.data) ? tweets.data : []);
-  const notificationsData = Array.isArray(notifications?.data) ? notifications.data : [];
+  const tweetsData = Array.isArray(tweets?.data?.results)
+    ? tweets.data.results
+    : Array.isArray(tweets?.data)
+    ? tweets.data
+    : [];
+  const notificationsData = Array.isArray(notifications?.data)
+    ? notifications.data
+    : [];
 
-  const activeAccountsCount = accountsData.filter(account => account.is_active).length;
-  const totalTweetsCount = tweetsData.length;
-  const unreadNotifications = notificationsData.filter(n => !n.is_read).length;
+  // デバッグログ
+  console.log("=== Dashboard Debug Logs ===");
+  console.log("Raw accounts data:", accounts);
+  console.log("Parsed accountsData:", accountsData);
+  console.log("accountsData length:", accountsData.length);
+
+  accountsData.forEach((account, index) => {
+    console.log(`Account ${index + 1}:`, {
+      username: account.username,
+      is_active: account.is_active,
+      tweets_count: account.tweets_count,
+    });
+  });
+
+  const activeAccountsCount = accountsData.filter(
+    (account) => account.is_active
+  ).length;
+  const totalAccountsCount = accountsData.length;
+  const totalTweetsCount = accountsData.reduce(
+    (sum, account) => sum + (account.tweets_count || 0),
+    0
+  );
+  const unreadNotifications = notificationsData.filter(
+    (n) => !n.is_read
+  ).length;
+
+  console.log("Calculated values:");
+  console.log("- activeAccountsCount:", activeAccountsCount);
+  console.log("- totalAccountsCount:", totalAccountsCount);
+  console.log("- totalTweetsCount:", totalTweetsCount);
+  console.log("- unreadNotifications:", unreadNotifications);
+  console.log("=== End Debug Logs ===");
 
   if (accountsLoading || tweetsLoading || notificationsLoading) {
     return (
-      <div style={{ textAlign: 'center', padding: '50px' }}>
+      <div style={{ textAlign: "center", padding: "50px" }}>
         <Spin size="large" />
         <div style={{ marginTop: 16 }}>データを読み込み中...</div>
       </div>
@@ -48,7 +90,7 @@ const DashboardPage = () => {
         <Title level={2} style={{ margin: 0 }}>
           ダッシュボード
         </Title>
-        <p style={{ margin: '8px 0 0 0', color: '#666' }}>
+        <p style={{ margin: "8px 0 0 0", color: "#666" }}>
           X (Twitter) スキー場情報監視の概要
         </p>
       </div>
@@ -72,7 +114,7 @@ const DashboardPage = () => {
               title="監視中アカウント"
               value={activeAccountsCount}
               prefix={<TwitterOutlined />}
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: "#1890ff" }}
             />
           </Card>
         </Col>
@@ -80,9 +122,9 @@ const DashboardPage = () => {
           <Card>
             <Statistic
               title="総アカウント数"
-              value={accountsData.length}
+              value={totalAccountsCount}
               prefix={<EyeOutlined />}
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: "#52c41a" }}
             />
           </Card>
         </Col>
@@ -92,7 +134,7 @@ const DashboardPage = () => {
               title="最新ツイート"
               value={totalTweetsCount}
               prefix={<FileTextOutlined />}
-              valueStyle={{ color: '#faad14' }}
+              valueStyle={{ color: "#faad14" }}
             />
           </Card>
         </Col>
@@ -102,7 +144,9 @@ const DashboardPage = () => {
               title="未読通知"
               value={unreadNotifications}
               prefix={<BellOutlined />}
-              valueStyle={{ color: unreadNotifications > 0 ? '#ff4d4f' : '#8c8c8c' }}
+              valueStyle={{
+                color: unreadNotifications > 0 ? "#ff4d4f" : "#8c8c8c",
+              }}
             />
           </Card>
         </Col>
@@ -111,7 +155,7 @@ const DashboardPage = () => {
       <Row gutter={[16, 16]}>
         {/* 監視中アカウント */}
         <Col xs={24} lg={12}>
-          <Card title="監視中アカウント" style={{ height: '400px' }}>
+          <Card title="監視中アカウント" style={{ height: "400px" }}>
             {accountsData.length === 0 ? (
               <Alert
                 message="監視中のアカウントがありません"
@@ -120,7 +164,7 @@ const DashboardPage = () => {
                 showIcon
               />
             ) : (
-              <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
+              <div style={{ maxHeight: "320px", overflowY: "auto" }}>
                 {accountsData.map((account) => (
                   <Card
                     key={account.id}
@@ -133,18 +177,22 @@ const DashboardPage = () => {
                           <img
                             src={account.avatar_url}
                             alt={account.username}
-                            style={{ width: 32, height: 32, borderRadius: '50%' }}
+                            style={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: "50%",
+                            }}
                           />
                         ) : (
                           <div
                             style={{
                               width: 32,
                               height: 32,
-                              borderRadius: '50%',
-                              background: '#f0f0f0',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
+                              borderRadius: "50%",
+                              background: "#f0f0f0",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
                             }}
                           >
                             <TwitterOutlined />
@@ -155,7 +203,7 @@ const DashboardPage = () => {
                       description={
                         <div>
                           <div>{account.display_name}</div>
-                          <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                          <div style={{ fontSize: "12px", color: "#8c8c8c" }}>
                             ツイート数: {account.tweets_count || 0}
                           </div>
                         </div>
@@ -170,7 +218,7 @@ const DashboardPage = () => {
 
         {/* 最新ツイート */}
         <Col xs={24} lg={12}>
-          <Card title="最新ツイート" style={{ height: '400px' }}>
+          <Card title="最新ツイート" style={{ height: "400px" }}>
             {tweetsData.length === 0 ? (
               <Alert
                 message="最新のツイートがありません"
@@ -179,33 +227,39 @@ const DashboardPage = () => {
                 showIcon
               />
             ) : (
-              <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
+              <div style={{ maxHeight: "320px", overflowY: "auto" }}>
                 {tweetsData.slice(0, 5).map((tweet) => (
-                  <Card
-                    key={tweet.id}
-                    size="small"
-                    style={{ marginBottom: 8 }}
-                  >
+                  <Card key={tweet.id} size="small" style={{ marginBottom: 8 }}>
                     <div>
-                      <div style={{ fontSize: '12px', color: '#8c8c8c', marginBottom: 4 }}>
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          color: "#8c8c8c",
+                          marginBottom: 4,
+                        }}
+                      >
                         @{tweet.x_account_username}
                       </div>
-                      <div className="tweet-content" style={{ fontSize: '14px' }}>
+                      <div
+                        className="tweet-content"
+                        style={{ fontSize: "14px" }}
+                      >
                         {tweet.content.length > 100
                           ? `${tweet.content.substring(0, 100)}...`
-                          : tweet.content
-                        }
+                          : tweet.content}
                       </div>
                       <div className="tweet-meta">
                         {tweet.ai_analysis && (
-                          <span className={`sentiment-${tweet.ai_analysis.sentiment}`}>
-                            {tweet.ai_analysis.sentiment === 'positive' && '😊'}
-                            {tweet.ai_analysis.sentiment === 'negative' && '😞'}
-                            {tweet.ai_analysis.sentiment === 'neutral' && '😐'}
+                          <span
+                            className={`sentiment-${tweet.ai_analysis.sentiment}`}
+                          >
+                            {tweet.ai_analysis.sentiment === "positive" && "😊"}
+                            {tweet.ai_analysis.sentiment === "negative" && "😞"}
+                            {tweet.ai_analysis.sentiment === "neutral" && "😐"}
                           </span>
                         )}
                         <span style={{ marginLeft: 8 }}>
-                          {new Date(tweet.posted_at).toLocaleString('ja-JP')}
+                          {new Date(tweet.posted_at).toLocaleString("ja-JP")}
                         </span>
                       </div>
                     </div>

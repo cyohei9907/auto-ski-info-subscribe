@@ -44,4 +44,5 @@ COPY . .
 EXPOSE 8000
 
 # Default command (can be overridden in docker-compose.yml)
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "300", "auto_ski_info.wsgi:application"]
+# Increased timeout to 600s for Playwright operations
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "600", "auto_ski_info.wsgi:application"]

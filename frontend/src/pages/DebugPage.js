@@ -28,10 +28,10 @@ function DebugPage() {
       const accountsData = Array.isArray(response.data) ? response.data : [];
       console.log("Accounts data:", accountsData); // 调试日志
       setAccounts(accountsData);
+      // 只在成功加载后才显示消息，不要在加载时就显示警告
       if (accountsData.length > 0) {
-        message.success(`加载了 ${accountsData.length} 个账号`);
-      } else {
-        message.warning("没有找到账号，请先在账号管理页面添加");
+        // 不显示消息，静默加载
+        console.log(`加载了 ${accountsData.length} 个账号`);
       }
     } catch (error) {
       console.error("Load accounts error:", error); // 调试日志
@@ -158,10 +158,15 @@ function DebugPage() {
             <div>
               <Text strong>选择X.com账号：</Text>
               <Select
-                placeholder="选择要调试的账号"
-                style={{ width: "300px", marginLeft: "12px" }}
+                placeholder={
+                  accounts.length === 0
+                    ? "没有账号，请先在账号管理页面添加"
+                    : "选择要调试的账号"
+                }
+                style={{ width: "400px", marginLeft: "12px" }}
                 value={selectedAccount}
                 onChange={setSelectedAccount}
+                disabled={accounts.length === 0}
               >
                 {accounts.map((account) => (
                   <Option key={account.id} value={account.id}>
@@ -170,6 +175,15 @@ function DebugPage() {
                 ))}
               </Select>
             </div>
+
+            {accounts.length === 0 && (
+              <Card type="inner">
+                <Text type="secondary">
+                  ℹ️ 还没有添加任何X.com账号。请前往
+                  <a href="/accounts">账号管理</a>页面添加账号。
+                </Text>
+              </Card>
+            )}
 
             {selectedAccountData && (
               <Card type="inner" title="操作步骤">

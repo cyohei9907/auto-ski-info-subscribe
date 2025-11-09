@@ -1,9 +1,10 @@
 import google.generativeai as genai
 import json
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from django.conf import settings
-from x_monitor.models import Tweet, AIAnalysis
+from django.utils import timezone
+from x_monitor.models import Tweet, AIAnalysis, AIPromptRule, RecommendedTweet
 
 logger = logging.getLogger(__name__)
 
@@ -327,3 +328,184 @@ def analyze_tweet_with_ai(tweet_id: int) -> Optional[AIAnalysis]:
     except Exception as e:
         logger.error(f"Error analyzing tweet {tweet_id}: {e}")
         return None
+
+
+class AIRecommendationService:
+    """AI推荐服务 - 基于自定义prompt规则筛选推文"""
+    
+    def __init__(self):
+        self.gemini = GeminiService()
+    
+    def filter_tweets_by_prompt(
+        self, 
+        tweets: List[Tweet], 
+        prompt_rule: AIPromptRule
+    ) -> List[Tuple[Tweet, str, float]]:
+        """
+        使用AI prompt规则筛选推文
+        
+        Args:
+            tweets: 推文列表
+            prompt_rule: AI提示词规则
+            
+        Returns:
+            List of (tweet, reason, score) tuples for matching tweets
+        """
+        if not tweets:
+            return []
+        
+        try:
+            # 构建批量分析的prompt
+            tweets_text = "\n\n".join([
+                f"推文{i+1} (ID: {tweet.tweet_id}):\n内容: {tweet.content}\n发布时间: {tweet.posted_at}"
+                for i, tweet in enumerate(tweets)
+            ])
+            
+            prompt = f"""
+            你是一个推文筛选助手。请根据以下规则筛选推文：
+            
+            规则: {prompt_rule.prompt}
+            
+            以下是需要筛选的推文：
+            {tweets_text}
+            
+            请分析每条推文，判断它是否符合规则。
+            对于每条推文，请以JSON格式返回：
+            {{
+                "tweet_id": "推文ID",
+                "match": true/false,
+                "reason": "匹配/不匹配的原因（简短说明）",
+                "relevance_score": 0.0-1.0之间的相关度分数
+            }}
+            
+            只返回符合规则的推文（match为true的）。
+            请以JSON数组的格式返回结果，例如：
+            [
+                {{"tweet_id": "123", "match": true, "reason": "提到了白马47滑雪场", "relevance_score": 0.95}},
+                {{"tweet_id": "456", "match": true, "reason": "讨论了白马地区的滑雪场信息", "relevance_score": 0.75}}
+            ]
+            
+            如果没有符合的推文，返回空数组 []
+            """
+            
+            response = self.gemini.model.generate_content(prompt)
+            result_text = response.text.strip()
+            
+            # 提取JSON部分
+            if "```json" in result_text:
+                result_text = result_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in result_text:
+                result_text = result_text.split("```")[1].split("```")[0].strip()
+            
+            # 解析JSON结果
+            results = json.loads(result_text)
+            
+            # 构建返回结果
+            matched_tweets = []
+            tweet_dict = {str(tweet.tweet_id): tweet for tweet in tweets}
+            
+            for result in results:
+                if result.get('match', False):
+                    tweet_id = str(result['tweet_id'])
+                    if tweet_id in tweet_dict:
+                        matched_tweets.append((
+                            tweet_dict[tweet_id],
+                            result.get('reason', '符合筛选规则'),
+                            float(result.get('relevance_score', 0.8))
+                        ))
+            
+            logger.info(f"Filtered {len(matched_tweets)} tweets from {len(tweets)} using rule '{prompt_rule.name}'")
+            return matched_tweets
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse AI response as JSON: {e}")
+            logger.error(f"Response text: {result_text}")
+            return []
+        except Exception as e:
+            logger.error(f"Error filtering tweets with AI: {e}")
+            return []
+    
+    def apply_rule_to_user_tweets(
+        self, 
+        user, 
+        prompt_rule: AIPromptRule,
+        date_filter: str = 'today'
+    ) -> int:
+        """
+        对用户的推文应用AI规则并生成推荐
+        
+        Args:
+            user: 用户对象
+            prompt_rule: AI规则
+            date_filter: 时间过滤 ('today', 'week', 'all')
+            
+        Returns:
+            新增的推荐推文数量
+        """
+        try:
+            # 获取用户监控的账户
+            # 如果规则指定了target_accounts，只使用这些账户；否则使用所有账户
+            target_accounts = prompt_rule.target_accounts.all()
+            if target_accounts.exists():
+                accounts = target_accounts.filter(user=user)
+                logger.info(f"Applying rule '{prompt_rule.name}' to {accounts.count()} specified accounts")
+            else:
+                accounts = user.x_accounts.all()
+                logger.info(f"Applying rule '{prompt_rule.name}' to all {accounts.count()} user accounts")
+            
+            if not accounts.exists():
+                logger.info(f"No accounts found for rule '{prompt_rule.name}'")
+                return 0
+            
+            # 获取这些账户的推文
+            from datetime import timedelta
+            from django.db.models import Q
+            
+            query = Tweet.objects.filter(x_account__in=accounts)
+            
+            # 应用时间过滤
+            if date_filter == 'today':
+                today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                query = query.filter(posted_at__gte=today_start)
+            elif date_filter == 'week':
+                week_ago = timezone.now() - timedelta(days=7)
+                query = query.filter(posted_at__gte=week_ago)
+            
+            tweets = list(query.order_by('-posted_at'))
+            
+            if not tweets:
+                logger.info(f"No tweets found for user {user.email} with filter '{date_filter}'")
+                return 0
+            
+            # 批量处理推文（每次最多50条）
+            batch_size = 50
+            total_recommended = 0
+            
+            for i in range(0, len(tweets), batch_size):
+                batch = tweets[i:i + batch_size]
+                matched_tweets = self.filter_tweets_by_prompt(batch, prompt_rule)
+                
+                # 创建推荐记录
+                for tweet, reason, score in matched_tweets:
+                    _, created = RecommendedTweet.objects.get_or_create(
+                        user=user,
+                        tweet=tweet,
+                        prompt_rule=prompt_rule,
+                        defaults={
+                            'ai_reason': reason,
+                            'relevance_score': score
+                        }
+                    )
+                    if created:
+                        total_recommended += 1
+            
+            # 更新规则的最后应用时间
+            prompt_rule.last_applied = timezone.now()
+            prompt_rule.save()
+            
+            logger.info(f"Applied rule '{prompt_rule.name}' to user {user.email}: {total_recommended} new recommendations")
+            return total_recommended
+            
+        except Exception as e:
+            logger.error(f"Error applying rule to user tweets: {e}")
+            return 0

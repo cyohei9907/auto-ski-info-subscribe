@@ -70,7 +70,7 @@ class AuthenticatedXScraperClient:
     def _create_authenticated_context(self, playwright):
         """创建带认证的浏览器上下文，伪装成真实的Windows Chrome浏览器"""
         browser = playwright.chromium.launch(
-            headless=True,
+            headless=True,  # 改回headless模式
             args=[
                 '--disable-blink-features=AutomationControlled',  # 隐藏自动化特征
                 '--disable-dev-shm-usage',
@@ -85,6 +85,8 @@ class AuthenticatedXScraperClient:
             user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',  # 最新Chrome版本
             locale='ja-JP',  # 日本地区
             timezone_id='Asia/Tokyo',  # 东京时区
+            bypass_csp=True,  # 添加bypass_csp（debug_scrape_url有这个）
+            java_script_enabled=True,
             extra_http_headers={
                 'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
@@ -216,7 +218,21 @@ class AuthenticatedXScraperClient:
                 try:
                     # 使用domcontentloaded代替networkidle，更可靠
                     page.goto(url, wait_until='domcontentloaded', timeout=90000)
-                    logger.info("Page loaded, waiting for tweets...")
+                    logger.info("Page loaded, waiting for React to render tweets...")
+                    
+                    # 关键修复：等待直到页面大小增长（说明React渲染完成）
+                    max_wait = 15  # 最多等15秒
+                    for i in range(max_wait):
+                        page.wait_for_timeout(1000)  # 每次等1秒
+                        html_size = len(page.content())
+                        logger.info(f"Wait {i+1}s: HTML size = {html_size} bytes")
+                        
+                        # 如果HTML超过400KB，说明内容加载了
+                        if html_size > 400000:
+                            logger.info(f"Content loaded (size: {html_size} bytes)")
+                            break
+                    
+                    logger.info("Checking for tweets...")
                     
                     # 检查是否需要登录（检测登录按钮）
                     try:
@@ -228,9 +244,8 @@ class AuthenticatedXScraperClient:
                         pass  # 没有登录按钮说明已登录，继续执行
                     
                     # 等待推文出现
-                    page.wait_for_selector('article[data-testid="tweet"]', timeout=45000)
-                    logger.info("Tweets detected, waiting for dynamic content...")
-                    page.wait_for_timeout(3000)
+                    page.wait_for_selector('article[data-testid="tweet"]', timeout=10000)  # 缩短到10秒
+                    logger.info("Tweets detected!")
                     
                     # 滚动到页面顶部，确保从最新推文开始
                     logger.info("Scrolling to top to ensure latest tweets...")
@@ -239,9 +254,30 @@ class AuthenticatedXScraperClient:
                     
                 except PlaywrightTimeoutError as e:
                     logger.error(f"Timeout waiting for page: {e}")
-                    logger.info("Trying to continue with current page state...")
-                    # 不立即返回，尝试获取当前页面内容
-                    page.wait_for_timeout(2000)
+                    logger.info("Waiting additional time for page to load...")
+                    # 即使超时，也多等待一些时间让页面加载
+                    page.wait_for_timeout(10000)  # 额外等待10秒
+                    
+                    # 尝试滚动页面，触发动态加载
+                    logger.info("Trying to scroll to trigger content loading...")
+                    for _ in range(3):
+                        page.evaluate('window.scrollBy(0, 500)')
+                        page.wait_for_timeout(1000)
+                    
+                    # 检查是否有推文加载出来
+                    tweet_count = page.evaluate('document.querySelectorAll(\'article[data-testid="tweet"]\').length')
+                    logger.info(f"After additional waiting and scrolling: {tweet_count} tweets visible")
+                    
+                    if tweet_count == 0:
+                        logger.warning("Still no tweets found, saving debug HTML...")
+                        # 保存HTML用于调试
+                        debug_html = page.content()
+                        import os as os_module
+                        from django.conf import settings as django_settings
+                        debug_file_path = os_module.path.join(django_settings.BASE_DIR, 'data', f"debug_failed_{username}_{int(time.time())}.html")
+                        with open(debug_file_path, 'w', encoding='utf-8') as f:
+                            f.write(debug_html)
+                        logger.warning(f"Debug HTML saved to: {debug_file_path}")
                 
                 # 滚动加载更多推文
                 logger.info("Scrolling to load more tweets...")
