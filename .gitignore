@@ -32,6 +32,9 @@ media/
 staticfiles/
 *.pot
 
+# Frontend build output (generated during Cloud Build)
+backend/frontend_build/
+
 # Django migrations (except __init__.py)
 # Uncomment if you want to ignore all migrations
 # */migrations/*.py

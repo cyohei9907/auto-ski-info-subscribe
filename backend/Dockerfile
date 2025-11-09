@@ -38,11 +38,8 @@ RUN pip install --no-cache-dir -r requirements.txt whitenoise
 RUN playwright install chromium
 RUN playwright install-deps chromium
 
-# Copy project
+# Copy project (this will include frontend_build if it exists)
 COPY . .
-
-# Create directory for frontend static files
-RUN mkdir -p /app/frontend_build
 
 EXPOSE 8000
 

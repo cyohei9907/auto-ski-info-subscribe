@@ -25,9 +25,14 @@ steps:
     args:
       - "-c"
       - |
-        mkdir -p backend/frontend_build
-        cp -r /workspace/frontend_build/* backend/frontend_build/
-        ls -la backend/frontend_build/
+        echo "Creating backend/frontend_build directory..."
+        mkdir -p /workspace/backend/frontend_build
+        echo "Copying frontend files..."
+        cp -r /workspace/frontend_build/* /workspace/backend/frontend_build/
+        echo "Frontend files copied. Contents:"
+        ls -la /workspace/backend/frontend_build/
+        echo "Checking if index.html exists:"
+        test -f /workspace/backend/frontend_build/index.html && echo "✅ index.html found" || echo "❌ index.html NOT found"
 
   # -----------------------------------------------------------------------------
   # Docker Image Builds
