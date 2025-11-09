@@ -32,7 +32,7 @@ RUN apt-get update && apt-get install -y \
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt whitenoise
 
 # Install Playwright browsers
 RUN playwright install chromium
@@ -40,6 +40,9 @@ RUN playwright install-deps chromium
 
 # Copy project
 COPY . .
+
+# Create directory for frontend static files
+RUN mkdir -p /app/frontend_build
 
 EXPOSE 8000
 

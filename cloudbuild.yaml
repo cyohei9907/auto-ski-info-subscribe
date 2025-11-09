@@ -1,9 +1,26 @@
 steps:
   # -----------------------------------------------------------------------------
+  # Build Frontend
+  # -----------------------------------------------------------------------------
+
+  # 1. Build Frontend (React)
+  - name: "node:18-alpine"
+    id: "Build Frontend"
+    entrypoint: "sh"
+    args:
+      - "-c"
+      - |
+        cd frontend
+        npm install
+        npm run build
+        # Copy build to backend directory for inclusion in Docker image
+        cp -r build ../backend/frontend_build
+
+  # -----------------------------------------------------------------------------
   # Docker Image Builds
   # -----------------------------------------------------------------------------
 
-  # 1. Build Backend Docker image
+  # 2. Build Backend Docker image (includes frontend)
   - name: "gcr.io/cloud-builders/docker"
     id: "Build Backend"
     args:
@@ -16,21 +33,6 @@ steps:
       - "backend/Dockerfile"
       - "backend"
 
-  # 2. Build Frontend Docker image
-  - name: "gcr.io/cloud-builders/docker"
-    id: "Build Frontend"
-    args:
-      - "build"
-      - "-t"
-      - "gcr.io/$PROJECT_ID/auto-ski-info-frontend:$BUILD_ID"
-      - "-t"
-      - "gcr.io/$PROJECT_ID/auto-ski-info-frontend:latest"
-      - "--build-arg"
-      - "REACT_APP_API_URL=https://auto-ski-info-backend-ewh22z3ota-an.a.run.app" # Note: Replace with your actual backend URL or use substitutions
-      - "-f"
-      - "frontend/Dockerfile"
-      - "frontend"
-
   # -----------------------------------------------------------------------------
   # Push Docker Images to GCR
   # -----------------------------------------------------------------------------
@@ -40,26 +42,16 @@ steps:
     id: "Push Backend"
     args: ["push", "gcr.io/$PROJECT_ID/auto-ski-info-backend:$BUILD_ID"]
 
-  # 4. Push Frontend image
-  - name: "gcr.io/cloud-builders/docker"
-    id: "Push Frontend"
-    args: ["push", "gcr.io/$PROJECT_ID/auto-ski-info-frontend:$BUILD_ID"]
-
-  # 5. Push 'latest' tag for Backend
+  # 4. Push 'latest' tag for Backend
   - name: "gcr.io/cloud-builders/docker"
     id: "Push Backend Latest"
     args: ["push", "gcr.io/$PROJECT_ID/auto-ski-info-backend:latest"]
-
-  # 6. Push 'latest' tag for Frontend
-  - name: "gcr.io/cloud-builders/docker"
-    id: "Push Frontend Latest"
-    args: ["push", "gcr.io/$PROJECT_ID/auto-ski-info-frontend:latest"]
 
   # -----------------------------------------------------------------------------
   # Cloud Run Deployments
   # -----------------------------------------------------------------------------
 
-  # 7. Deploy Backend to Cloud Run (migrations will run automatically via entrypoint.sh)
+  # 5. Deploy Backend to Cloud Run (includes frontend, migrations will run automatically via entrypoint.sh)
   - name: "gcr.io/cloud-builders/gcloud"
     id: "Deploy Backend"
     args:
@@ -92,36 +84,11 @@ steps:
       - "--add-cloudsql-instances"
       - "${_CLOUD_SQL_CONNECTION_NAME}"
 
-  # 8. Deploy Frontend to Cloud Run
-  - name: "gcr.io/cloud-builders/gcloud"
-    id: "Deploy Frontend"
-    args:
-      - "run"
-      - "deploy"
-      - "auto-ski-info-frontend"
-      - "--image"
-      - "gcr.io/$PROJECT_ID/auto-ski-info-frontend:$BUILD_ID"
-      - "--region"
-      - "${_REGION}"
-      - "--platform"
-      - "managed"
-      - "--allow-unauthenticated"
-      - "--port"
-      - "80"
-      - "--memory"
-      - "512Mi"
-      - "--cpu"
-      - "1"
-      - "--min-instances"
-      - "0"
-      - "--max-instances"
-      - "5"
-
   # -----------------------------------------------------------------------------
   # Cloud Scheduler Setup
   # -----------------------------------------------------------------------------
 
-  # 9. Create/Update Cloud Scheduler job for monitoring
+  # 6. Create/Update Cloud Scheduler job for monitoring
   - name: "gcr.io/cloud-builders/gcloud"
     id: "Setup Scheduler"
     entrypoint: "bash"
@@ -144,7 +111,7 @@ steps:
           --time-zone="Asia/Tokyo" \
           --description="Triggers the X account monitoring task every 15 minutes."
 
-  # 10. Grant Invoker role to Scheduler Service Account
+  # 7. Grant Invoker role to Scheduler Service Account
   - name: "gcr.io/cloud-builders/gcloud"
     id: "Grant Invoker Role"
     args:
@@ -163,8 +130,6 @@ steps:
 images:
   - "gcr.io/$PROJECT_ID/auto-ski-info-backend:$BUILD_ID"
   - "gcr.io/$PROJECT_ID/auto-ski-info-backend:latest"
-  - "gcr.io/$PROJECT_ID/auto-ski-info-frontend:$BUILD_ID"
-  - "gcr.io/$PROJECT_ID/auto-ski-info-frontend:latest"
 
 # -----------------------------------------------------------------------------
 # Substitutions & Options
