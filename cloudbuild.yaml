@@ -60,23 +60,23 @@ steps:
   # -----------------------------------------------------------------------------
 
   # 7. Run Django database migrations
-  - name: "gcr.io/google-appengine/exec-wrapper"
+  - name: "gcr.io/cloud-builders/gcloud"
     id: "Database Migration"
+    entrypoint: "bash"
     args:
-      - "-i"
-      - "gcr.io/$PROJECT_ID/auto-ski-info-backend:$BUILD_ID"
-      - "-s"
-      - "${_CLOUD_SQL_CONNECTION_NAME}"
-      - "-e"
-      - "USE_CLOUD_SQL=True"
-      - "-e"
-      - "DEBUG=False"
-      # Secrets for database connection
-      - "--"
-      - "python"
-      - "manage.py"
-      - "migrate"
-      - "--noinput"
+      - "-c"
+      - |
+        # Fetch the database password from Secret Manager
+        DB_PASSWORD=$$(gcloud secrets versions access latest --secret=DATABASE_PASSWORD)
+
+        # Run the migration with the fetched password
+        /builder/google-appengine/exec-wrapper \
+          -i gcr.io/$PROJECT_ID/auto-ski-info-backend:$BUILD_ID \
+          -s "${_CLOUD_SQL_CONNECTION_NAME}" \
+          -e USE_CLOUD_SQL=True \
+          -e DEBUG=False \
+          -e DATABASE_PASSWORD="$$DB_PASSWORD" \
+          -- python manage.py migrate --noinput
 
   # -----------------------------------------------------------------------------
   # Cloud Run Deployments
