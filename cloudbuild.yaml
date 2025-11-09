@@ -73,7 +73,7 @@ steps:
           --region=${_REGION} \
           --set-env-vars=USE_CLOUD_SQL=True,CLOUD_DB_NAME=${_CLOUD_DB_NAME},CLOUD_DB_USER=${_CLOUD_DB_USER},DEBUG=False \
           --set-secrets=DATABASE_PASSWORD=DATABASE_PASSWORD:latest \
-          --add-cloudsql-instances=${_CLOUD_SQL_CONNECTION_NAME} \
+          --set-cloudsql-instances=${_CLOUD_SQL_CONNECTION_NAME} \
           --command=python \
           --args=manage.py,migrate,--noinput \
           --max-retries=0 \
