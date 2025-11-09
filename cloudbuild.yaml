@@ -1,6 +1,11 @@
 steps:
-  # Build backend Docker image
+  # -----------------------------------------------------------------------------
+  # Docker Image Builds
+  # -----------------------------------------------------------------------------
+
+  # 1. Build Backend Docker image
   - name: "gcr.io/cloud-builders/docker"
+    id: "Build Backend"
     args:
       - "build"
       - "-t"
@@ -11,32 +16,75 @@ steps:
       - "backend/Dockerfile"
       - "backend"
 
-  # Build frontend Docker image
+  # 2. Build Frontend Docker image
   - name: "gcr.io/cloud-builders/docker"
+    id: "Build Frontend"
     args:
       - "build"
       - "-t"
       - "gcr.io/$PROJECT_ID/auto-ski-info-frontend:$BUILD_ID"
       - "-t"
       - "gcr.io/$PROJECT_ID/auto-ski-info-frontend:latest"
+      - "--build-arg"
+      - "REACT_APP_API_URL=https://auto-ski-info-backend-ewh22z3ota-an.a.run.app" # Note: Replace with your actual backend URL or use substitutions
       - "-f"
       - "frontend/Dockerfile"
       - "frontend"
 
-  # Push backend image
+  # -----------------------------------------------------------------------------
+  # Push Docker Images to GCR
+  # -----------------------------------------------------------------------------
+
+  # 3. Push Backend image
   - name: "gcr.io/cloud-builders/docker"
+    id: "Push Backend"
+    args: ["push", "gcr.io/$PROJECT_ID/auto-ski-info-backend:$BUILD_ID"]
+
+  # 4. Push Frontend image
+  - name: "gcr.io/cloud-builders/docker"
+    id: "Push Frontend"
+    args: ["push", "gcr.io/$PROJECT_ID/auto-ski-info-frontend:$BUILD_ID"]
+
+  # 5. Push 'latest' tag for Backend
+  - name: "gcr.io/cloud-builders/docker"
+    id: "Push Backend Latest"
+    args: ["push", "gcr.io/$PROJECT_ID/auto-ski-info-backend:latest"]
+
+  # 6. Push 'latest' tag for Frontend
+  - name: "gcr.io/cloud-builders/docker"
+    id: "Push Frontend Latest"
+    args: ["push", "gcr.io/$PROJECT_ID/auto-ski-info-frontend:latest"]
+
+  # -----------------------------------------------------------------------------
+  # Database Migration
+  # -----------------------------------------------------------------------------
+
+  # 7. Run Django database migrations
+  - name: "gcr.io/google-appengine/exec-wrapper"
+    id: "Database Migration"
     args:
-      - "push"
+      - "-i"
       - "gcr.io/$PROJECT_ID/auto-ski-info-backend:$BUILD_ID"
+      - "-s"
+      - "${_CLOUD_SQL_CONNECTION_NAME}"
+      - "-e"
+      - "USE_CLOUD_SQL=True"
+      - "-e"
+      - "DEBUG=False"
+      # Secrets for database connection
+      - "--"
+      - "python"
+      - "manage.py"
+      - "migrate"
+      - "--noinput"
 
-  # Push frontend image
-  - name: "gcr.io/cloud-builders/docker"
-    args:
-      - "push"
-      - "gcr.io/$PROJECT_ID/auto-ski-info-frontend:$BUILD_ID"
+  # -----------------------------------------------------------------------------
+  # Cloud Run Deployments
+  # -----------------------------------------------------------------------------
 
-  # Deploy backend to Cloud Run
+  # 8. Deploy Backend to Cloud Run
   - name: "gcr.io/cloud-builders/gcloud"
+    id: "Deploy Backend"
     args:
       - "run"
       - "deploy"
@@ -44,7 +92,7 @@ steps:
       - "--image"
       - "gcr.io/$PROJECT_ID/auto-ski-info-backend:$BUILD_ID"
       - "--region"
-      - "asia-northeast1"
+      - "${_REGION}"
       - "--platform"
       - "managed"
       - "--allow-unauthenticated"
@@ -60,18 +108,16 @@ steps:
       - "10"
       - "--timeout"
       - "300"
-      # 環境変数設定
       - "--set-env-vars"
-      - "USE_CLOUD_SQL=True,CLOUD_DB_NAME=ski-scrapy,CLOUD_DB_USER=postgres,DEBUG=False,ALLOWED_HOSTS=*"
-      # Secret Manager から API キーとパスワードを取得
+      - "USE_CLOUD_SQL=True,CLOUD_DB_NAME=${_CLOUD_DB_NAME},CLOUD_DB_USER=${_CLOUD_DB_USER},DEBUG=False,ALLOWED_HOSTS=*"
       - "--set-secrets"
       - "DATABASE_PASSWORD=DATABASE_PASSWORD:latest,AI_API_KEY_GOOGLE=AI_API_KEY_GOOGLE:latest,X_API_KEY=X_API_KEY:latest,X_API_SECRET=X_API_SECRET:latest,X_ACCESS_TOKEN=X_ACCESS_TOKEN:latest,X_ACCESS_TOKEN_SECRET=X_ACCESS_TOKEN_SECRET:latest,X_BEARER_TOKEN=X_BEARER_TOKEN:latest"
-      # Cloud SQL 接続
       - "--add-cloudsql-instances"
-      - "gen-lang-client-0543160602:asia-northeast1:ai-project-database"
+      - "${_CLOUD_SQL_CONNECTION_NAME}"
 
-  # Deploy frontend to Cloud Run
+  # 9. Deploy Frontend to Cloud Run
   - name: "gcr.io/cloud-builders/gcloud"
+    id: "Deploy Frontend"
     args:
       - "run"
       - "deploy"
@@ -79,7 +125,7 @@ steps:
       - "--image"
       - "gcr.io/$PROJECT_ID/auto-ski-info-frontend:$BUILD_ID"
       - "--region"
-      - "asia-northeast1"
+      - "${_REGION}"
       - "--platform"
       - "managed"
       - "--allow-unauthenticated"
@@ -91,41 +137,69 @@ steps:
       - "1"
       - "--min-instances"
       - "0"
-      - "--max-instances"
       - "5"
-      # フロントエンドの環境変数
       - "--set-env-vars"
-      - "REACT_APP_API_URL=https://auto-ski-info-backend-${_REGION_ID}.a.run.app/api"
+      - "REACT_APP_API_URL=https://auto-ski-info-backend-${_REGION_HASH}-${_REGION}.a.run.app" # Adjust based on your backend URL format
 
-  # Cloud Scheduler でバックグラウンドタスクを実行 (Celery の代替)
+  # -----------------------------------------------------------------------------
+  # Cloud Scheduler Setup
+  # -----------------------------------------------------------------------------
+
+  # 10. Create/Update Cloud Scheduler job for monitoring
   - name: "gcr.io/cloud-builders/gcloud"
+    id: "Setup Scheduler"
     entrypoint: "bash"
     args:
       - "-c"
       - |
-        # 15分ごとに監視タスクを実行する Cloud Scheduler ジョブを作成/更新
         gcloud scheduler jobs create http monitor-x-accounts \
           --schedule="*/15 * * * *" \
-          --uri="https://auto-ski-info-backend-${_REGION_ID}.a.run.app/api/monitor/trigger-monitoring/" \
+          --uri="https://auto-ski-info-backend-${_REGION_HASH}-${_REGION}.a.run.app/api/monitor/trigger-monitoring/" \
           --http-method=POST \
-          --oidc-service-account-email=$_SERVICE_ACCOUNT \
-          --location=asia-northeast1 \
-          --time-zone=Asia/Tokyo \
+          --oidc-service-account-email="${_SCHEDULER_SERVICE_ACCOUNT}" \
+          --location="${_REGION}" \
+          --time-zone="Asia/Tokyo" \
+          --description="Triggers the X account monitoring task every 15 minutes." \
           || gcloud scheduler jobs update http monitor-x-accounts \
           --schedule="*/15 * * * *" \
-          --uri="https://auto-ski-info-backend-${_REGION_ID}.a.run.app/api/monitor/trigger-monitoring/" \
-          --location=asia-northeast1
+          --uri="https://auto-ski-info-backend-${_REGION_HASH}-${_REGION}.a.run.app/api/monitor/trigger-monitoring/" \
+          --oidc-service-account-email="${_SCHEDULER_SERVICE_ACCOUNT}" \
+          --location="${_REGION}" \
+          --time-zone="Asia/Tokyo" \
+          --description="Triggers the X account monitoring task every 15 minutes."
 
+  # 11. Grant Invoker role to Scheduler Service Account
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: "Grant Invoker Role"
+    args:
+      - "run"
+      - "services"
+      - "add-iam-policy-binding"
+      - "auto-ski-info-backend"
+      - "--region=${_REGION}"
+      - "--member=serviceAccount:${_SCHEDULER_SERVICE_ACCOUNT}"
+      - "--role=roles/run.invoker"
+      - "--platform=managed"
+
+# -----------------------------------------------------------------------------
+# Image Manifest
+# -----------------------------------------------------------------------------
 images:
   - "gcr.io/$PROJECT_ID/auto-ski-info-backend:$BUILD_ID"
   - "gcr.io/$PROJECT_ID/auto-ski-info-backend:latest"
   - "gcr.io/$PROJECT_ID/auto-ski-info-frontend:$BUILD_ID"
   - "gcr.io/$PROJECT_ID/auto-ski-info-frontend:latest"
 
-# 置換変数（デフォルト値）
+# -----------------------------------------------------------------------------
+# Substitutions & Options
+# -----------------------------------------------------------------------------
 substitutions:
-  _REGION_ID: "asia-northeast1"
-  _SERVICE_ACCOUNT: "default-service-account@${PROJECT_ID}.iam.gserviceaccount.com"
+  _REGION: "asia-northeast1"
+  _CLOUD_SQL_CONNECTION_NAME: "gen-lang-client-0543160602:asia-northeast1:ai-project-database"
+  _CLOUD_DB_NAME: "ski-scrapy"
+  _CLOUD_DB_USER: "postgres"
+  _SCHEDULER_SERVICE_ACCOUNT: "${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" # Default Compute Engine service account
+  _REGION_HASH: "ewh22z3ota" # Example hash, check your Cloud Run URL
 
 options:
   logging: CLOUD_LOGGING_ONLY
