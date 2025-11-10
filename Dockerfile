@@ -104,6 +104,13 @@ RUN echo '#!/bin/bash\n\
     set -e\n\
     echo "Starting initialization..."\n\
     \n\
+    # 设置默认端口（Cloud Run 会自动设置 PORT 环境变量）\n\
+    export PORT=${PORT:-8080}\n\
+    echo "Container will listen on port: $PORT"\n\
+    \n\
+    # 更新 nginx 配置以使用正确的端口\n\
+    sed -i "s/listen 8080;/listen $PORT;/g" /etc/nginx/nginx.conf\n\
+    \n\
     # 创建必要的目录\n\
     mkdir -p /var/log/supervisor /app/data /run\n\
     \n\
