@@ -51,7 +51,7 @@ steps:
       - "--port"
       - "8080"
       - "--memory"
-      - "512Mi"
+      - "1Gi"
       - "--cpu"
       - "1"
       - "--min-instances"
@@ -68,6 +68,8 @@ steps:
       - "${_CLOUD_SQL_CONNECTION_NAME}"
       - "--no-cpu-throttling"
       - "--cpu-boost"
+      - "--startup-probe"
+      - "initialDelaySeconds=10,timeoutSeconds=10,periodSeconds=5,failureThreshold=6,httpGet.port=8080,httpGet.path=/health/"
 
   # -----------------------------------------------------------------------------
   # Cloud Scheduler Setup
