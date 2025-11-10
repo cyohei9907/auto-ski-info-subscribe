@@ -73,7 +73,38 @@ COPY supervisord.combined.conf /etc/supervisord.conf
 
 WORKDIR /app
 
+# 创建启动脚本，先执行迁移再启动 Supervisor
+RUN echo '#!/bin/bash\n\
+    set -e\n\
+    echo "Starting initialization..."\n\
+    \n\
+    # Cloud SQL 使用時のみ PostgreSQL 待機\n\
+    if [ "$USE_CLOUD_SQL" = "True" ]; then\n\
+    echo "Waiting for Cloud SQL to be ready..."\n\
+    sleep 10\n\
+    fi\n\
+    \n\
+    # データディレクトリを作成\n\
+    mkdir -p /app/data\n\
+    \n\
+    # Run migrations\n\
+    echo "Running database migrations..."\n\
+    cd /app && python manage.py migrate --noinput\n\
+    \n\
+    # Initialize users\n\
+    echo "Initializing users..."\n\
+    cd /app && python init_users.py || true\n\
+    \n\
+    # Collect static files\n\
+    echo "Collecting static files..."\n\
+    cd /app && python manage.py collectstatic --noinput\n\
+    \n\
+    # Start Supervisor\n\
+    echo "Starting Supervisor..."\n\
+    exec /usr/bin/supervisord -c /etc/supervisord.conf\n\
+    ' > /app/startup.sh && chmod +x /app/startup.sh
+
 EXPOSE 8080
 
-# 使用 Supervisor 同时运行 Nginx 和 Django
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+# 使用启动脚本
+CMD ["/app/startup.sh"]
