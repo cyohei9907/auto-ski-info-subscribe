@@ -169,10 +169,22 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8080",
 ]
 
+# Add Cloud Run URLs if in production
+if not DEBUG or config('USE_CLOUD_SQL', default=False, cast=bool):
+    # Add Cloud Run service URL (will be like https://<service>-<hash>-<region>.a.run.app)
+    cloud_run_url = config('CLOUD_RUN_URL', default='')
+    if cloud_run_url:
+        CSRF_TRUSTED_ORIGINS.append(cloud_run_url)
+    # Also add https for localhost in case of local testing with SSL
+    CSRF_TRUSTED_ORIGINS.extend([
+        "https://localhost:8080",
+        "https://127.0.0.1:8080",
+    ])
+
 # CSRF Cookie設定
 CSRF_COOKIE_HTTPONLY = False  # JavaScriptからアクセス可能にする
 CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SECURE = False  # 開発環境用、本番環境ではTrueに
+CSRF_COOKIE_SECURE = not DEBUG  # 本番環境ではTrueに
 CSRF_USE_SESSIONS = False
 
 # Swagger settings

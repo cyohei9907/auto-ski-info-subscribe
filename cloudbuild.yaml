@@ -51,9 +51,9 @@ steps:
       - "--port"
       - "8080"
       - "--memory"
-      - "4Gi"
+      - "512Mi"
       - "--cpu"
-      - "4"
+      - "1"
       - "--min-instances"
       - "0"
       - "--max-instances"
@@ -67,7 +67,7 @@ steps:
       - "--add-cloudsql-instances"
       - "${_CLOUD_SQL_CONNECTION_NAME}"
       - "--no-cpu-throttling"
-      - "--startup-cpu-boost"
+      - "--cpu-boost"
 
   # -----------------------------------------------------------------------------
   # Cloud Scheduler Setup
