@@ -1,8 +1,6 @@
 """auto_ski_info URL Configuration"""
 from django.contrib import admin
-from django.urls import path, include, re_path
-from django.views.generic import TemplateView
-from django.conf import settings
+from django.urls import path, include
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
@@ -30,10 +28,4 @@ urlpatterns = [
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     path('swagger.json', schema_view.without_ui(cache_timeout=0), name='schema-json'),
-]
-
-# Serve React frontend for all non-API/admin/swagger routes (SPA routing)
-# This must be at the end to act as a catch-all
-urlpatterns += [
-    re_path(r'^(?!api/|admin|swagger|redoc|static/).*$', TemplateView.as_view(template_name='index.html'), name='frontend'),
 ]
