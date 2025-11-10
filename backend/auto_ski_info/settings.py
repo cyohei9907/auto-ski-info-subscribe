@@ -16,7 +16,16 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-changeme-in-productio
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0', cast=lambda v: [s.strip() for s in v.split(',')])
+# Parse ALLOWED_HOSTS from environment variable
+allowed_hosts_str = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0')
+ALLOWED_HOSTS = [s.strip() for s in allowed_hosts_str.split(',')]
+
+# Add common internal hostnames for Docker/Kubernetes environments
+if not DEBUG or config('USE_CLOUD_SQL', default=False, cast=bool):
+    ALLOWED_HOSTS.extend(['backend', '127.0.0.1', 'localhost'])
+    # In production, accept all hosts if configured with *
+    if '*' in allowed_hosts_str:
+        ALLOWED_HOSTS = ['*']
 
 # Application definition
 DJANGO_APPS = [
@@ -39,6 +48,7 @@ LOCAL_APPS = [
     'accounts',
     'x_monitor',
     'ai_service',
+    'mcp_service',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -155,6 +165,8 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
 ]
 
 # CSRF Cookie設定

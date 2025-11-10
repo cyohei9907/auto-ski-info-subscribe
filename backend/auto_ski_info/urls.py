@@ -23,6 +23,7 @@ urlpatterns = [
     path('api/auth/', include('accounts.urls')),
     path('api/monitor/', include('x_monitor.urls')),
     path('api/ai/', include('ai_service.urls')),
+    path('api/mcp/', include('mcp_service.urls')),  # MCP Resource endpoints
     
     # Swagger documentation
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
