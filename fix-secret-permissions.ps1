@@ -27,12 +27,7 @@ Write-Host ""
 # 所有需要访问的密钥
 $secrets = @(
     "DATABASE_PASSWORD",
-    "AI_API_KEY_GOOGLE",
-    "X_API_KEY",
-    "X_API_SECRET",
-    "X_ACCESS_TOKEN",
-    "X_ACCESS_TOKEN_SECRET",
-    "X_BEARER_TOKEN"
+    "AI_API_KEY_GOOGLE"
 )
 
 Write-Host "开始授予密钥访问权限..." -ForegroundColor Yellow

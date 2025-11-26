@@ -23,16 +23,19 @@
 ## 🏗️ 技术栈
 
 **前端**
+
 - React 18 + Ant Design
 - React Query + React Router
 
 **后端**
+
 - Django 4.2 + Django REST Framework
 - Playwright (无头浏览器爬虫)
 - Celery + Redis (定时任务)
 - Google Gemini AI (内容分析)
 
 **部署**
+
 - Docker + Docker Compose
 - Nginx (反向代理)
 - Google Cloud Run (可选)
@@ -42,19 +45,9 @@
 ### 前置要求
 
 - Docker & Docker Compose
-- X (Twitter) 账号 Cookie
-- Google Gemini API Key (可选，用于 AI 分析)
+- Google Gemini API Key (用于 AI 分析)
 
-### 1. 获取 X Cookie
-
-登录 [X (Twitter)](https://twitter.com)，按 `F12` 打开开发者工具：
-
-1. 进入 `Application` → `Cookies` → `https://twitter.com`
-2. 复制以下 Cookie 值：
-   - `auth_token` - 认证令牌（必需）
-   - `ct0` - CSRF 令牌（必需）
-
-### 2. 配置环境变量
+### 1. 配置环境变量
 
 ```bash
 # 复制环境变量模板
@@ -64,12 +57,9 @@ cp backend/.env.example backend/.env
 ```
 
 **必需配置**:
-```ini
-# X Cookie 认证
-X_COOKIE_AUTH_TOKEN=your_auth_token_value
-X_COOKIE_CT0=your_ct0_value
 
-# AI 服务（可选）
+```ini
+# AI 服务
 AI_API_KEY_GOOGLE=your_gemini_api_key
 
 # Django 配置
@@ -78,7 +68,7 @@ SECRET_KEY=your-secret-key-change-in-production
 ALLOWED_HOSTS=localhost,127.0.0.1
 ```
 
-### 3. 启动服务
+### 2. 启动服务
 
 ```bash
 # 克隆仓库
@@ -92,7 +82,7 @@ docker-compose up -d
 docker-compose logs -f
 ```
 
-### 4. 访问应用
+### 3. 访问应用
 
 - **前端界面**: http://localhost:3000
 - **后端 API**: http://localhost:8000
@@ -156,6 +146,7 @@ GET /api/mcp/tweets/search/?q=关键词&sentiment=positive
 3. 按 `F5` 开始调试
 
 **调试配置**:
+
 - `🐳 Docker: Full Stack Debug` - 前后端同时调试
 - `Docker: Backend (Remote)` - 后端调试（端口 5678）
 - `Docker: Frontend (Chrome)` - 前端调试
@@ -181,6 +172,7 @@ chmod +x deploy.sh
 ```
 
 **当前配置**（`cloudbuild.yaml`）：
+
 - CPU: 1 核
 - 内存: 512Mi
 - 实例数: 0-10（自动扩缩容）
@@ -207,12 +199,6 @@ app.conf.beat_schedule = {
 
 ## 🛠️ 故障排查
 
-### Cookie 认证失败
-
-- 检查 Cookie 是否过期（重新从浏览器获取）
-- 确认 `.env` 中的值正确无误
-- 查看日志：`docker-compose logs backend | grep -i auth`
-
 ### Celery 任务不执行
 
 - 检查 Redis：`docker-compose ps redis`
@@ -233,12 +219,11 @@ app.conf.beat_schedule = {
 
 ## 🔐 安全与合规
 
-### Cookie 安全
+### API 密钥安全
 
-- ⚠️ **切勿公开** 您的 `auth_token` 和 `ct0` Cookie
+- ⚠️ **切勿公开** 您的 API 密钥
 - ✅ 使用 `.env` 文件存储，添加到 `.gitignore`
 - ✅ 生产环境使用 Secret Manager
-- ✅ 定期更新 Cookie（建议每月）
 
 ### 使用限制
 
@@ -258,6 +243,7 @@ app.conf.beat_schedule = {
 5. 创建 Pull Request
 
 **代码规范**:
+
 - Python: PEP 8
 - JavaScript: ESLint + Prettier
 - Commit: 语义化提交信息（`feat:`, `fix:`, `docs:`）

@@ -32,36 +32,6 @@ echo ""
 echo $GEMINI_KEY | gcloud secrets create AI_API_KEY_GOOGLE --data-file=- --replication-policy="automatic" 2>/dev/null || \
 echo $GEMINI_KEY | gcloud secrets versions add AI_API_KEY_GOOGLE --data-file=-
 
-# X_API_KEY
-read -sp "X_API_KEY (Twitter API キー): " X_KEY
-echo ""
-echo $X_KEY | gcloud secrets create X_API_KEY --data-file=- --replication-policy="automatic" 2>/dev/null || \
-echo $X_KEY | gcloud secrets versions add X_API_KEY --data-file=-
-
-# X_API_SECRET
-read -sp "X_API_SECRET (Twitter API シークレット): " X_SECRET
-echo ""
-echo $X_SECRET | gcloud secrets create X_API_SECRET --data-file=- --replication-policy="automatic" 2>/dev/null || \
-echo $X_SECRET | gcloud secrets versions add X_API_SECRET --data-file=-
-
-# X_ACCESS_TOKEN
-read -sp "X_ACCESS_TOKEN (Twitter アクセストークン): " X_TOKEN
-echo ""
-echo $X_TOKEN | gcloud secrets create X_ACCESS_TOKEN --data-file=- --replication-policy="automatic" 2>/dev/null || \
-echo $X_TOKEN | gcloud secrets versions add X_ACCESS_TOKEN --data-file=-
-
-# X_ACCESS_TOKEN_SECRET
-read -sp "X_ACCESS_TOKEN_SECRET (Twitter アクセストークンシークレット): " X_TOKEN_SECRET
-echo ""
-echo $X_TOKEN_SECRET | gcloud secrets create X_ACCESS_TOKEN_SECRET --data-file=- --replication-policy="automatic" 2>/dev/null || \
-echo $X_TOKEN_SECRET | gcloud secrets versions add X_ACCESS_TOKEN_SECRET --data-file=-
-
-# X_BEARER_TOKEN
-read -sp "X_BEARER_TOKEN (Twitter Bearer トークン): " X_BEARER
-echo ""
-echo $X_BEARER | gcloud secrets create X_BEARER_TOKEN --data-file=- --replication-policy="automatic" 2>/dev/null || \
-echo $X_BEARER | gcloud secrets versions add X_BEARER_TOKEN --data-file=-
-
 echo ""
 echo "✅ シークレットの設定が完了しました！"
 echo ""
@@ -72,7 +42,7 @@ echo "🔧 Cloud Run サービスアカウントにシークレットへのア�
 # デフォルトの Compute Engine サービスアカウント
 SERVICE_ACCOUNT="${PROJECT_ID}-compute@developer.gserviceaccount.com"
 
-for SECRET in DATABASE_PASSWORD AI_API_KEY_GOOGLE X_API_KEY X_API_SECRET X_ACCESS_TOKEN X_ACCESS_TOKEN_SECRET X_BEARER_TOKEN; do
+for SECRET in DATABASE_PASSWORD AI_API_KEY_GOOGLE; do
   gcloud secrets add-iam-policy-binding $SECRET \
     --member="serviceAccount:${SERVICE_ACCOUNT}" \
     --role="roles/secretmanager.secretAccessor"

@@ -10,19 +10,10 @@
 
 ### 必要な API キー
 
-1. **X (Twitter) API キー**
+**Google Gemini API キー**
 
-   - https://developer.twitter.com/ でアプリケーションを作成
-   - 以下のキーを取得:
-     - API Key
-     - API Secret
-     - Access Token
-     - Access Token Secret
-     - Bearer Token
-
-2. **Google Gemini API キー**
-   - https://makersuite.google.com/app/apikey でキーを作成
-   - API Key を取得
+- https://makersuite.google.com/app/apikey でキーを作成
+- API Key を取得
 
 ## セットアップ手順
 
@@ -32,11 +23,6 @@
 
 ```powershell
 # システム環境変数に追加
-[System.Environment]::SetEnvironmentVariable('X_API_KEY', 'your-x-api-key', 'User')
-[System.Environment]::SetEnvironmentVariable('X_API_SECRET', 'your-x-api-secret', 'User')
-[System.Environment]::SetEnvironmentVariable('X_ACCESS_TOKEN', 'your-access-token', 'User')
-[System.Environment]::SetEnvironmentVariable('X_ACCESS_TOKEN_SECRET', 'your-token-secret', 'User')
-[System.Environment]::SetEnvironmentVariable('X_BEARER_TOKEN', 'your-bearer-token', 'User')
 [System.Environment]::SetEnvironmentVariable('AI_API_KEY_GOOGLE', 'your-gemini-api-key', 'User')
 
 # PowerShell を再起動して反映
@@ -46,11 +32,6 @@
 
 ```bash
 # ~/.bashrc または ~/.zshrc に追加
-export X_API_KEY="your-x-api-key"
-export X_API_SECRET="your-x-api-secret"
-export X_ACCESS_TOKEN="your-access-token"
-export X_ACCESS_TOKEN_SECRET="your-token-secret"
-export X_BEARER_TOKEN="your-bearer-token"
 export AI_API_KEY_GOOGLE="your-gemini-api-key"
 
 # 設定を反映
